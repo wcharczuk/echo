@@ -1,6 +1,5 @@
 name: echo
 accessibility: public
-
 env:
   - name: LOG_EVENTS
     value: info,warning,error,fatal,web.request
