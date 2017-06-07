@@ -1,5 +1,6 @@
 name: echo
 accessibility: public
+container-port: 5001
 env:
   - name: LOG_EVENTS
     value: info,warning,error,fatal,web.request
