@@ -26,7 +26,7 @@ func main() {
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
-		message := fmt.Sprintf("DATABASE_URL: %s\n%s", os.Getenv("DATABASE_URL"), body)
+		message := fmt.Sprintf("REMOTE_HOST: %s\nDATABASE_URL: %s\n%s", os.Getenv("REMOTE_HOST"), os.Getenv("DATABASE_URL"), body)
 		return r.RawWithContentType(web.ContentTypeText, []byte(message))
 	})
 	app.POST("/*filepath", func(r *web.Ctx) web.Result {
