@@ -1,4 +1,0 @@
-service-env: prod
-env:
-- name: PROVIDER_URL
-  value: https://api.provider.com
