@@ -1,3 +1,4 @@
+service-env: sandbox
 env:
-    - name: SPECIAL
-      value: VALUE
+    - name: PROVIDER_URL
+      value: https://test.provider.com 

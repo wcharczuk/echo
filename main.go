@@ -18,14 +18,14 @@ func main() {
 
 	app := web.New()
 	app.SetLogger(agent)
-	app.GET("/", func(r *web.Ctx) web.Result {
+	app.GET("/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
 		return r.RawWithContentType(r.Request.Header.Get(web.HeaderContentType), []byte(body))
 	})
-	app.POST("/", func(r *web.Ctx) web.Result {
+	app.POST("/*filepath", func(r *web.Ctx) web.Result {
 		body, err := r.PostBody()
 		if err != nil {
 			return r.JSON().InternalError(err)
