@@ -1,11 +1,3 @@
 name: echo
 accessibility: public
 container-port: 5001
-env:
-  - name: LOG_EVENTS
-    value: info,warning,error,fatal,web.request
-  - name: DATABASE_URL
-    valueFrom:
-      secretKeyRef:
-        name: echo-secrets
-        key: DATABASE_URL 
