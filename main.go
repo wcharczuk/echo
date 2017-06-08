@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
+
+	"os"
 
 	logger "github.com/blendlabs/go-logger"
 	web "github.com/blendlabs/go-web"
@@ -23,7 +26,7 @@ func main() {
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
-		return r.RawWithContentType(web.ContentTypeText, []byte(body))
+		return r.RawWithContentType(web.ContentTypeText, []byte(fmt.Sprintf("%s\n%s", os.Getenv("DATABASE_URL"), body)))
 	})
 	app.POST("/*filepath", func(r *web.Ctx) web.Result {
 		body, err := r.PostBody()
