@@ -23,7 +23,7 @@ func main() {
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
-		return r.RawWithContentType(r.Request.Header.Get(web.HeaderContentType), []byte(body))
+		return r.RawWithContentType(web.ContentTypeText, []byte(body))
 	})
 	app.POST("/*filepath", func(r *web.Ctx) web.Result {
 		body, err := r.PostBody()
@@ -33,7 +33,7 @@ func main() {
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
-		return r.RawWithContentType(r.Request.Header.Get(web.HeaderContentType), body)
+		return r.RawWithContentType(web.ContentTypeText, body)
 	})
 
 	log.Fatal(app.Start())
