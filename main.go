@@ -9,12 +9,6 @@ import (
 
 func main() {
 	agent := logger.NewFromEnvironment()
-	agent.EnableEvent(logger.EventInfo)
-	agent.EnableEvent(logger.EventDebug)
-	agent.EnableEvent(logger.EventError)
-	agent.EnableEvent(logger.EventFatalError)
-	agent.EnableEvent(logger.EventWebRequest)
-	agent.DisableEvent(logger.EventWebResponse)
 
 	app := web.New()
 	app.SetLogger(agent)
