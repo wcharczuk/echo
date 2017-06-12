@@ -1,10 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"log"
-
-	"os"
 
 	logger "github.com/blendlabs/go-logger"
 	web "github.com/blendlabs/go-web"
