@@ -6,7 +6,7 @@ WORKDIR "/go/src/github.com/wcharczuk/echo"
 
 ADD main.go /go/src/github.com/wcharczuk/echo/main.go
 ADD vendor /go/src/github.com/wcharczuk/echo/vendor
-RUN go build -o /go/bin/echo .
+RUN go install github.com/wcharczuk/echo
 
 ENTRYPOINT /go/bin/echo
 EXPOSE 5000
