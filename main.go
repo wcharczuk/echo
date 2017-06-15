@@ -16,7 +16,7 @@ func main() {
 	app := web.New()
 	app.SetLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
-		return r.Text().Result("echo service")
+		return r.Text().Result("echo")
 	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 10*time.Second {
