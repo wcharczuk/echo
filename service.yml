@@ -1,4 +1,7 @@
 accessibility: public
-env:
-  - name: REMOTE_HOST
-    value: api.blend.com
+
+readinessProbe:
+    httpGet:
+        path: /status
+    initialDelaySeconds: 6
+    periodSeconds: 3
