@@ -1,7 +1,9 @@
 accessibility: public
+containerPort: 5000
 
 readinessProbe:
     httpGet:
         path: /status
+        port: 5000 
     initialDelaySeconds: 6
     periodSeconds: 3
