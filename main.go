@@ -19,7 +19,7 @@ func main() {
 		return r.Text().Result("echo")
 	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
-		if time.Since(appStart) > 10*time.Second {
+		if time.Since(appStart) > 12*time.Second {
 			return r.Text().Result("OK!")
 		}
 		return r.Text().BadRequest("not ready")
