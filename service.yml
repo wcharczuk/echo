@@ -4,6 +4,9 @@ autoscale: enabled
 maxReplicas: 25
 cpuThreshold: 60
 resources:
+  limits:
+    cpu: 200m
+    memory: 400Mi
   requests:
     cpu: 100m
     memory: 200Mi
