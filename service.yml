@@ -1,2 +1,5 @@
 accessibility: public
 containerPort: 5000
+autoscale: enabled
+maxReplicas: 25
+cpuThreshold: 60
