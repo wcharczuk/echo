@@ -3,7 +3,3 @@ containerPort: 5000
 autoscale: enabled
 maxReplicas: 25
 cpuThreshold: 60
-resources:
-  requests:
-    cpu: 100m
-    memory: 200Mi
