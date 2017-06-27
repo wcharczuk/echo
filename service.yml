@@ -1,4 +1,4 @@
-accessibility: public
+accessibility: private 
 containerPort: 5000
 autoscale: enabled
 maxReplicas: 25
