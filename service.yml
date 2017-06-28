@@ -1,5 +1,3 @@
 accessibility: private 
 containerPort: 5000
-autoscale: enabled
-maxReplicas: 25
-cpuThreshold: 60
+awsRoleArn: arn:aws:kms:us-east-1:669613168049:key/e4e0b6cd-7e8b-49cf-beb8-3347dd7daf9a
