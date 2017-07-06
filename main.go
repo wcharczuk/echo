@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -44,6 +45,20 @@ func main() {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
 		return r.RawWithContentType(web.ContentTypeText, body)
+	})
+
+	app.GET("/stat/secrets", func(r *web.Ctx) web.Result {
+		files, err := ioutil.ReadDir("/var/secrets-agent")
+		if err != nil {
+			return r.JSON().InternalError(err)
+		}
+		allFiles := ""
+
+		for _, file := range files {
+			allFiles += file.Name()
+		}
+
+		return r.RawWithContentType(web.ContentTypeText, []byte(allFiles))
 	})
 
 	log.Fatal(app.Start())
