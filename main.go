@@ -41,7 +41,7 @@ func main() {
 		return r.Raw(contents)
 	})
 	app.GET("/aws", func(r *web.Ctx) web.Result {
-		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH", "/root/.aws"))
+		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH", "/root/.aws/credentials"))
 		if err != nil {
 			return r.JSON().InternalError(err)
 		}
