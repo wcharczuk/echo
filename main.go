@@ -5,7 +5,9 @@ import (
 	"log"
 	"time"
 
+	exception "github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
+	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
 )
 
@@ -13,6 +15,11 @@ func main() {
 	agent := logger.NewFromEnvironment()
 
 	appStart := time.Now()
+
+	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
+	if err != nil {
+		log.Fatal(exception.New(err))
+	}
 
 	app := web.New()
 	app.SetLogger(agent)
@@ -28,6 +35,10 @@ func main() {
 			return r.Text().Result("OK!")
 		}
 		return r.Text().BadRequest("not ready")
+	})
+	app.GET("/config", func(r *web.Ctx) web.Result {
+		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
+		return r.Raw(contents)
 	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
