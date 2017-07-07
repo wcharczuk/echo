@@ -1,11 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
-	exception "github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
 	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
@@ -18,7 +19,7 @@ func main() {
 
 	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
 	if err != nil {
-		log.Fatal(exception.New(err))
+		fmt.Fprintf(os.Stderr, "%v", err)
 	}
 
 	app := web.New()
