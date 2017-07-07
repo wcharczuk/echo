@@ -41,7 +41,7 @@ func main() {
 		return r.Raw(contents)
 	})
 	app.GET("/aws/config", func(r *web.Ctx) web.Result {
-		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH", "/var/aws-credentials/config"))
+		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH_CONFIG", "/root/.aws/config"))
 		if err != nil {
 			return r.JSON().InternalError(err)
 		}
@@ -49,7 +49,7 @@ func main() {
 		return r.Raw(contents)
 	})
 	app.GET("/aws/lease", func(r *web.Ctx) web.Result {
-		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH", "/var/aws-credentials/lease"))
+		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH_LEASE", "/root/.aws/lease"))
 		if err != nil {
 			return r.JSON().InternalError(err)
 		}
