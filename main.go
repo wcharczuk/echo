@@ -41,6 +41,19 @@ func main() {
 		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
 		return r.Raw(contents)
 	})
+	app.GET("/long", func(r *web.Ctx) web.Result {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				{
+					fmt.Fprintf(r.Response, "tick\n")
+				}
+			}
+		}
+
+		return nil
+	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
 		if len(body) == 0 {
