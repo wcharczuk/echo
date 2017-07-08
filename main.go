@@ -25,10 +25,6 @@ func main() {
 	app := web.New()
 	app.SetLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
-		var x int
-		for i := 0; i < 1<<20; i++ {
-			x++
-		}
 		return r.Text().Result("echo")
 	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
