@@ -48,6 +48,7 @@ func main() {
 			case <-ticker.C:
 				{
 					fmt.Fprintf(r.Response, "tick\n")
+					r.Response.Flush()
 				}
 			}
 		}
