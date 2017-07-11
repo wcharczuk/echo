@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -28,7 +29,7 @@ func main() {
 		return r.Text().Result("echo")
 	})
 	app.GET("/headers", func(r *web.Ctx) web.Result {
-		contents, err := json.MarshalString(r.Header())
+		contents, err := json.Marshal(r.Request.Header)
 		if err != nil {
 			return r.View().InternalError(err)
 		}
