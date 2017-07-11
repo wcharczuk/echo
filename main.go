@@ -18,6 +18,13 @@ func main() {
 	app.GET("/", func(r *web.Ctx) web.Result {
 		return r.Text().Result("echo")
 	})
+	app.GET("/headers", func(r *web.Ctx) web.Result {
+		contents, err := json.MarshalString(r.Header())
+		if err != nil {
+			return r.View().InternalError(err)
+		}
+		return r.Text().Result(string(contents))
+	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 12*time.Second {
 			return r.Text().Result("OK!")
