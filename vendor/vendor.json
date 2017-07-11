@@ -15,6 +15,18 @@
 			"revisionTime": "2017-05-27T21:31:35Z"
 		},
 		{
+			"checksumSHA1": "Uhr0UHeljMCP3claE1fz6WmnrjQ=",
+			"path": "github.com/blendlabs/go-util",
+			"revision": "6564ff05cc50b880cde8fa1d4265e7ee3a4aba68",
+			"revisionTime": "2017-06-29T22:25:58Z"
+		},
+		{
+			"checksumSHA1": "TLcfAnsJQGDJtTw4JLUVVVBbHL4=",
+			"path": "github.com/blendlabs/go-util/env",
+			"revision": "6564ff05cc50b880cde8fa1d4265e7ee3a4aba68",
+			"revisionTime": "2017-06-29T22:25:58Z"
+		},
+		{
 			"checksumSHA1": "5oq0VTDHDga2y/xoz7vTJ7hQVCM=",
 			"path": "github.com/blendlabs/go-web",
 			"revision": "5d8a464159c436ad612a97ddaf90079e2821b6c6",

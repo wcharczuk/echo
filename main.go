@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	logger "github.com/blendlabs/go-logger"
+	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
 )
 
@@ -12,6 +16,11 @@ func main() {
 	agent := logger.NewFromEnvironment()
 
 	appStart := time.Now()
+
+	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+	}
 
 	app := web.New()
 	app.SetLogger(agent)
@@ -30,6 +39,24 @@ func main() {
 			return r.Text().Result("OK!")
 		}
 		return r.Text().BadRequest("not ready")
+	})
+	app.GET("/config", func(r *web.Ctx) web.Result {
+		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
+		return r.Raw(contents)
+	})
+	app.GET("/long", func(r *web.Ctx) web.Result {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				{
+					fmt.Fprintf(r.Response, "tick\n")
+					r.Response.Flush()
+				}
+			}
+		}
+
+		return nil
 	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
