@@ -35,6 +35,9 @@ func main() {
 		}
 		return r.Text().Result(string(contents))
 	})
+	app.GET("/env", func(r *web.Ctx) web.Result {
+		return r.JSON().Result(env.Env().Vars())
+	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 12*time.Second {
 			return r.Text().Result("OK!")
