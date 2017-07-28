@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
-	exception "github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
 	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
@@ -18,17 +20,23 @@ func main() {
 
 	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
 	if err != nil {
-		log.Fatal(exception.New(err))
+		fmt.Fprintf(os.Stderr, "%v", err)
 	}
 
 	app := web.New()
 	app.SetLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
-		var x int
-		for i := 0; i < 1<<20; i++ {
-			x++
-		}
 		return r.Text().Result("echo")
+	})
+	app.GET("/headers", func(r *web.Ctx) web.Result {
+		contents, err := json.Marshal(r.Request.Header)
+		if err != nil {
+			return r.View().InternalError(err)
+		}
+		return r.Text().Result(string(contents))
+	})
+	app.GET("/env", func(r *web.Ctx) web.Result {
+		return r.JSON().Result(env.Env().Vars())
 	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 12*time.Second {
@@ -40,21 +48,19 @@ func main() {
 		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
 		return r.Raw(contents)
 	})
-	app.GET("/aws/config", func(r *web.Ctx) web.Result {
-		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH_CONFIG", "/root/.aws/config"))
-		if err != nil {
-			return r.JSON().InternalError(err)
+	app.GET("/long", func(r *web.Ctx) web.Result {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		for {
+			select {
+			case <-ticker.C:
+				{
+					fmt.Fprintf(r.Response, "tick\n")
+					r.Response.Flush()
+				}
+			}
 		}
-		r.Response.Header().Set("Content-Type", "application/yaml")
-		return r.Raw(contents)
-	})
-	app.GET("/aws/lease", func(r *web.Ctx) web.Result {
-		contents, err := ioutil.ReadFile(env.Env().String("AWS_PATH_LEASE", "/root/.aws/lease"))
-		if err != nil {
-			return r.JSON().InternalError(err)
-		}
-		r.Response.Header().Set("Content-Type", "application/yaml")
-		return r.Raw(contents)
+
+		return nil
 	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
@@ -72,20 +78,6 @@ func main() {
 			return r.RawWithContentType(web.ContentTypeText, []byte("nada."))
 		}
 		return r.RawWithContentType(web.ContentTypeText, body)
-	})
-
-	app.GET("/stat/secrets", func(r *web.Ctx) web.Result {
-		files, err := ioutil.ReadDir("/var/secrets-agent")
-		if err != nil {
-			return r.JSON().InternalError(err)
-		}
-		allFiles := ""
-
-		for _, file := range files {
-			allFiles += file.Name()
-		}
-
-		return r.RawWithContentType(web.ContentTypeText, []byte(allFiles))
 	})
 
 	log.Fatal(app.Start())
