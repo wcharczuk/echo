@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"os"
 	"time"
 
 	logger "github.com/blendlabs/go-logger"
@@ -20,7 +19,7 @@ func main() {
 
 	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v", err)
+		agent.Warning(err)
 	}
 
 	app := web.New()
@@ -36,7 +35,7 @@ func main() {
 		return r.Text().Result(string(contents))
 	})
 	app.GET("/env", func(r *web.Ctx) web.Result {
-		return r.JSON().Result(env.Env().Vars())
+		return r.JSON().Result(env.Env())
 	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 12*time.Second {
@@ -48,7 +47,13 @@ func main() {
 		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
 		return r.Raw(contents)
 	})
-	app.GET("/long", func(r *web.Ctx) web.Result {
+	app.GET("/long/:seconds", func(r *web.Ctx) web.Result {
+		seconds, err := r.RouteParamInt("seconds")
+		if err != nil {
+			return r.Text().BadRequest(err.Error())
+		}
+
+		timeout := time.After(time.Duration(seconds) * time.Second)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		for {
 			select {
@@ -57,10 +62,12 @@ func main() {
 					fmt.Fprintf(r.Response, "tick\n")
 					r.Response.Flush()
 				}
+			case <-timeout:
+				{
+					return r.Raw([]byte("timeout\n"))
+				}
 			}
 		}
-
-		return nil
 	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request.URL.Path
