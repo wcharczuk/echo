@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"time"
 
 	logger "github.com/blendlabs/go-logger"
@@ -13,7 +12,7 @@ import (
 )
 
 func main() {
-	agent := logger.NewFromEnvironment()
+	agent := logger.All().WithWriter(logger.NewWriterFromEnv())
 
 	appStart := time.Now()
 
@@ -22,8 +21,7 @@ func main() {
 		agent.Warning(err)
 	}
 
-	app := web.New()
-	app.SetLogger(agent)
+	app := web.New().WithLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
 		return r.Text().Result("echo")
 	})
@@ -37,11 +35,14 @@ func main() {
 	app.GET("/env", func(r *web.Ctx) web.Result {
 		return r.JSON().Result(env.Env())
 	})
+	app.GET("/proxy/*filepath", func(r *web.Ctx) web.Result {
+		return r.JSON().Result("OK!")
+	})
 	app.GET("/status", func(r *web.Ctx) web.Result {
 		if time.Since(appStart) > 12*time.Second {
 			return r.Text().Result("OK!")
 		}
-		return r.Text().BadRequest("not ready")
+		return r.Text().BadRequest(fmt.Errorf("not ready"))
 	})
 	app.GET("/config", func(r *web.Ctx) web.Result {
 		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
@@ -50,7 +51,7 @@ func main() {
 	app.GET("/long/:seconds", func(r *web.Ctx) web.Result {
 		seconds, err := r.RouteParamInt("seconds")
 		if err != nil {
-			return r.Text().BadRequest(err.Error())
+			return r.Text().BadRequest(err)
 		}
 
 		timeout := time.After(time.Duration(seconds) * time.Second)
@@ -60,7 +61,6 @@ func main() {
 			case <-ticker.C:
 				{
 					fmt.Fprintf(r.Response, "tick\n")
-					r.Response.Flush()
 				}
 			case <-timeout:
 				{
@@ -87,5 +87,5 @@ func main() {
 		return r.RawWithContentType(web.ContentTypeText, body)
 	})
 
-	log.Fatal(app.Start())
+	agent.SyncFatalExit(app.Start())
 }
