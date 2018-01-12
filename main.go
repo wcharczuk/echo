@@ -32,9 +32,9 @@ func main() {
 		}
 		return r.Text().Result(string(contents))
 	})
-	app.GET("/env", func(r *web.Ctx) web.Result {
+	/*app.GET("/env", func(r *web.Ctx) web.Result {
 		return r.JSON().Result(env.Env())
-	})
+	})*/
 	app.GET("/proxy/*filepath", func(r *web.Ctx) web.Result {
 		return r.JSON().Result("OK!")
 	})
