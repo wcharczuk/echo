@@ -1,0 +1,43 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "Ssktbpjqh4tN5BsyQ+/2zI1don4=",
+			"path": "github.com/blendlabs/go-exception",
+			"revision": "8d6614c6a381fe586fa618174af22043ff966730",
+			"revisionTime": "2017-10-24T19:22:40Z"
+		},
+		{
+			"checksumSHA1": "JPK+USEuiDFXbGQy5kGxv5wFurs=",
+			"path": "github.com/blendlabs/go-logger",
+			"revision": "78ff967fd7827f67102c42d5f33459fa46f2d0bc",
+			"revisionTime": "2017-12-07T17:31:11Z"
+		},
+		{
+			"checksumSHA1": "tq5yoX7/N8ARRCYzYM/qQdQA8P8=",
+			"path": "github.com/blendlabs/go-util",
+			"revision": "2da91d26dd94224b78f3a8bae48baf36f920b84a",
+			"revisionTime": "2017-12-15T05:17:40Z"
+		},
+		{
+			"checksumSHA1": "WMoGAQNUiA400hAlmFdRdgpGs60=",
+			"path": "github.com/blendlabs/go-util/env",
+			"revision": "2da91d26dd94224b78f3a8bae48baf36f920b84a",
+			"revisionTime": "2017-12-15T05:17:40Z"
+		},
+		{
+			"checksumSHA1": "g0QDn4eYyZRdKZWrcqfskSVYWdU=",
+			"path": "github.com/blendlabs/go-util/uuid",
+			"revision": "2da91d26dd94224b78f3a8bae48baf36f920b84a",
+			"revisionTime": "2017-12-15T05:17:40Z"
+		},
+		{
+			"checksumSHA1": "JxZAHR8zrUPeMTxux+RRkaXDTpM=",
+			"path": "github.com/blendlabs/go-web",
+			"revision": "0de8b5733ab3d74985b1374789b0e5f53f07485e",
+			"revisionTime": "2018-01-09T19:51:54Z"
+		}
+	],
+	"rootPath": "github.com/wcharczuk/echo"
+}
