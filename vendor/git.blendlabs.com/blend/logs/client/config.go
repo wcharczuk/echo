@@ -1,6 +1,8 @@
 package client
 
 import (
+	"strings"
+
 	util "github.com/blendlabs/go-util"
 	"github.com/blendlabs/go-util/env"
 )
@@ -24,6 +26,14 @@ type Config struct {
 	ServerName string `json:"serverName" yaml:"serverName" env:"CLIENT_SERVER_NAME"`
 	UseTLS     *bool  `json:"useTLS" yaml:"useTLS" env:"CLIENT_USE_TLS"`
 	CAFile     string `json:"caFile" yaml:"caFile" env:"CLIENT_TLS_CA_FILE"`
+}
+
+// GetUnixSocketPath gets the unix socket path.
+func (c Config) GetUnixSocketPath() string {
+	if strings.HasPrefix(c.GetAddr(), "unix://") {
+		return strings.TrimPrefix(c.GetAddr(), "unix://")
+	}
+	return ""
 }
 
 // GetAddr gets an addr or a default.

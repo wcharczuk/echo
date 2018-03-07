@@ -1,6 +1,7 @@
 package client
 
 import (
+	"os"
 	"time"
 
 	"git.blendlabs.com/blend/logs/pkg/protoutil"
@@ -9,6 +10,19 @@ import (
 	"github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
 )
+
+// HasUnixSocket returns if the unix socket is present for a given config.
+func HasUnixSocket(cfg *Config) bool {
+	socketPath := cfg.GetUnixSocketPath()
+	if len(socketPath) == 0 {
+		return false
+	}
+
+	if _, err := os.Stat(socketPath); err == nil {
+		return true
+	}
+	return false
+}
 
 // NewMessageRaw returns a new raw logging message
 func NewMessageRaw(ts time.Time, body []byte) logv1.Message {
@@ -58,7 +72,7 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 				Timestamp: protoutil.MarshalTimestamp(ee.Timestamp()),
 			},
 			Type:  logv1.MessageType_ERROR,
-			Error: newMessageExceptionInner(typed),
+			Error: newMessageExceptionInner(typed.Inner()),
 		}
 	}
 	return logv1.Message{
@@ -101,14 +115,19 @@ func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
 	}
 }
 
-func newMessageExceptionInner(ex *exception.Ex) *logv1.Error {
-	if ex == nil {
+func newMessageExceptionInner(err error) *logv1.Error {
+	if err == nil {
 		return nil
 	}
+	if typed, isTyped := err.(*exception.Ex); isTyped {
+		return &logv1.Error{
+			Class:   typed.Class(),
+			Message: typed.Message(),
+			Stack:   typed.StackTrace().AsStringSlice(),
+			Inner:   newMessageExceptionInner(typed.Inner()),
+		}
+	}
 	return &logv1.Error{
-		Class:   ex.Class(),
-		Message: ex.Message(),
-		Stack:   ex.StackTrace().AsStringSlice(),
-		Inner:   newMessageExceptionInner(ex),
+		Class: err.Error(),
 	}
 }
