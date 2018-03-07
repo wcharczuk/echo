@@ -143,6 +143,10 @@ func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
 
 // send sends a batch of messages.
 func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error) {
+	if c.log != nil {
+		c.log.Debugf("log-client sending %d messages", len(messages))
+	}
+
 	stream, openStreamErr := c.grpcSender.Push(ctx)
 	if openStreamErr != nil {
 		err = exception.Wrap(openStreamErr)
@@ -168,6 +172,9 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 }
 
 func (c *Client) flush(objs []interface{}) {
+	if len(objs) == 0 {
+		return
+	}
 	if c.log != nil {
 		c.log.Debugf("log-client flushing %d messages", len(objs))
 	}
