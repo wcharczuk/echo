@@ -3,23 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"time"
 
+	logs "git.blendlabs.com/blend/logs/client"
 	logger "github.com/blendlabs/go-logger"
 	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
 )
 
 func main() {
-	agent := logger.All().WithWriter(logger.NewWriterFromEnv())
+	agent := logger.All()
 
 	appStart := time.Now()
-
-	contents, err := ioutil.ReadFile(env.Env().String("CONFIG_PATH", "/var/secrets/config.yml"))
-	if err != nil {
-		agent.Warning(err)
-	}
 
 	app := web.New().WithLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
@@ -32,9 +27,9 @@ func main() {
 		}
 		return r.Text().Result(string(contents))
 	})
-	/*app.GET("/env", func(r *web.Ctx) web.Result {
-		return r.JSON().Result(env.Env())
-	})*/
+	app.GET("/env", func(r *web.Ctx) web.Result {
+		return r.JSON().Result(env.Env().Vars())
+	})
 	app.GET("/proxy/*filepath", func(r *web.Ctx) web.Result {
 		return r.JSON().Result("OK!")
 	})
@@ -43,10 +38,6 @@ func main() {
 			return r.Text().Result("OK!")
 		}
 		return r.Text().BadRequest(fmt.Errorf("not ready"))
-	})
-	app.GET("/config", func(r *web.Ctx) web.Result {
-		r.Response.Header().Set("Content-Type", "application/yaml") // but is it really?
-		return r.Raw(contents)
 	})
 	app.GET("/long/:seconds", func(r *web.Ctx) web.Result {
 		seconds, err := r.RouteParamInt("seconds")
@@ -86,6 +77,13 @@ func main() {
 		}
 		return r.RawWithContentType(web.ContentTypeText, body)
 	})
+
+	logsClient, err := logs.New(logs.NewConfigFromEnv())
+	if err != nil {
+		agent.SyncFatalExit(err)
+	}
+	agent.Listen(logger.WebRequest, "log-collector", logs.CreateLoggerListenerHTTPRequest(logsClient))
+	agent.Listen(logger.Info, "log-collector", logs.CreateLoggerListenerInfo(logsClient))
 
 	agent.SyncFatalExit(app.Start())
 }

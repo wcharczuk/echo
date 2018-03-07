@@ -1,0 +1,24 @@
+// [START declaration]
+syntax = "proto3";
+import "log/v1/Message.proto";
+import "google/protobuf/Duration.proto";
+package collectorv1;
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/collector/v1";
+// [END go_declaration]
+
+service Collector {
+    // Receive takes a stream of messages.
+    rpc Push(stream logv1.Message) returns (ReceiveSummary) {};
+}
+
+// ReceiveSummary is a digest of messages processed.
+message ReceiveSummary {
+  // The number of messages received.
+  int32 message_count = 1;
+
+  // The elapsed time while processing.
+  google.protobuf.Duration elapsed = 2;
+}

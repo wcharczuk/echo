@@ -1,0 +1,44 @@
+// [START declaration]
+syntax = "proto3";
+package logv1;
+import "log/v1/Meta.proto";
+import "log/v1/Raw.proto";
+import "log/v1/Values.proto";
+import "log/v1/Error.proto";
+import "log/v1/HttpRequest.proto";
+import "log/v1/Info.proto";
+import "smoke-signal/v1/Result.proto";
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1";
+// [END go_declaration]
+
+enum MessageType {
+  RAW = 0;
+  VALUES = 1;
+  ERROR = 2;
+  HTTP = 3;
+  INFO = 4;
+
+  SMOKE_SIGNAL_RESULT = 100;
+}
+
+// [START messages]
+message Message {
+    // type is the type of the object
+    // it is used principally in routing to processors.
+    MessageType type = 1;
+    // meta contains extra metadata for the message like timestamp.
+    Meta meta = 2;
+
+    Raw raw = 100; // 100 + messageType
+    Values values = 101; // 100 + messageType
+    Error error = 102; // 100 + messageType
+    HttpRequest httpRequest = 103; // 100 + messageType
+    Info info = 104; // 100 + messageType
+
+    // these are nonstandard, app specific message types
+    smokesignalv1.Result smokeSignalResult = 200;
+} 
+// [END messages]

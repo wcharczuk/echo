@@ -1,0 +1,15 @@
+// [START declaration]
+syntax = "proto3";
+package logv1;
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1";
+// [END go_declaration]
+
+// [START messages]
+message Info {
+  string flag = 1;
+  string message = 2;
+} 
+// [END messages]

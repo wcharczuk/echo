@@ -1,0 +1,46 @@
+// [START declaration]
+syntax = "proto3";
+package logv1;
+import "google/protobuf/Duration.proto";
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1";
+// [END go_declaration]
+
+// [START messages]
+message HttpRequest {
+  // method + url are the basics of http
+  string method = 1;
+  // url is the full / raw url
+  string url = 2;
+  // the following unpack the url into useful sections.
+  string scheme = 3;
+  string host = 4;
+  string path = 5;
+  string queryString = 6;
+  // the following describe the client
+  string userAgent = 7;
+  string remoteAddr = 8;
+  // referrer isn't useful in backend contexts
+  // but could be for frontend
+  string referrer = 9; 
+
+  // generally only applies to post requests
+  int64 contentLength = 10;
+  string contentType = 11;
+  string contentEncoding = 12;
+
+  // route is kind of implementation specific;
+  // it depends on the app having a muxer
+  // route should be the path less actual variables
+  string route = 13;
+
+  // response fields
+  google.protobuf.Duration elapsed = 20;
+  int32 statusCode = 21;
+  int64 responseContentLength = 22;
+  string responseContentEncoding = 23;
+  string responseContentType = 24;
+} 
+// [END messages]
