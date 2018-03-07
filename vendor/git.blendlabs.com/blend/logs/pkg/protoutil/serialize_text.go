@@ -88,10 +88,8 @@ func SerializeHTTPRequestText(msg *logv1.Message, writer *logger.TextWriter) err
 
 	event := UnmarshalHTTPRequestAsEvent(msg.HttpRequest)
 	event.WithTimestamp(UnmarshalTimestamp(msg.Meta.Timestamp))
-	buf := writer.GetBuffer()
-	defer writer.PutBuffer(buf)
-	event.WriteText(writer, buf)
-	return nil
+
+	return writer.Write(event)
 }
 
 // SerializeInfoText serializes an info message as text.

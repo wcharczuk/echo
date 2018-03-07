@@ -54,6 +54,7 @@ func New(cfg *Config) (*Client, error) {
 	var afb *collections.AutoflushBuffer
 	if cfg.GetBuffered() {
 		afb = collections.NewAutoflushBuffer(cfg.GetBufferMaxLength(), cfg.GetBufferFlushInterval())
+		afb.Start()
 	}
 
 	return &Client{
@@ -75,6 +76,28 @@ type Client struct {
 	grpcSender         collectorv1.CollectorClient
 }
 
+// WithBuffer sets the client to use an internal autoflush buffer.
+func (c *Client) WithBuffer(maxLen int, interval time.Duration) *Client {
+	c.flushBuffer = collections.NewAutoflushBuffer(maxLen, interval).WithFlushHandler(c.flush).WithFlushOnAbort(true)
+	return c
+}
+
+// Buffer returns the internal autoflush buffer.
+func (c *Client) Buffer() *collections.AutoflushBuffer {
+	return c.flushBuffer
+}
+
+// Close closes the client.
+func (c *Client) Close() error {
+	if c.flushBuffer != nil {
+		c.flushBuffer.Stop()
+	}
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
 // WithLogger sets the logger.
 func (c *Client) WithLogger(log *logger.Logger) *Client {
 	c.log = log
@@ -84,12 +107,6 @@ func (c *Client) WithLogger(log *logger.Logger) *Client {
 // Logger returns the logger.
 func (c *Client) Logger() *logger.Logger {
 	return c.log
-}
-
-// WithBuffer sets the client to use an internal autoflush buffer.
-func (c *Client) WithBuffer(maxLen int, interval time.Duration) *Client {
-	c.flushBuffer = collections.NewAutoflushBuffer(maxLen, interval).WithFlushHandler(c.flush).WithFlushOnAbort(true)
-	return c
 }
 
 // WithDefaultLabel sets a default label to inject into collected messages.
@@ -102,14 +119,6 @@ func (c *Client) WithDefaultLabel(key, value string) *Client {
 func (c *Client) WithDefaultAnnotation(key, value string) *Client {
 	c.defaultAnnotations[key] = value
 	return c
-}
-
-// Close closes the underlying connection.
-func (c *Client) Close() error {
-	if c.conn != nil {
-		return c.conn.Close()
-	}
-	return nil
 }
 
 // Send sends a message.
@@ -159,6 +168,9 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 }
 
 func (c *Client) flush(objs []interface{}) {
+	if c.log != nil {
+		c.log.Debugf("log-client flushing %d messages", len(objs))
+	}
 	typed := make([]logv1.Message, len(objs))
 	for x := 0; x < len(objs); x++ {
 		typed[x] = objs[x].(logv1.Message)
