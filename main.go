@@ -16,7 +16,7 @@ func main() {
 
 	appStart := time.Now()
 
-	app := web.New().WithLogger(agent)
+	app := web.NewFromConfig(web.NewConfigFromEnv()).WithLogger(agent)
 	app.GET("/", func(r *web.Ctx) web.Result {
 		return r.Text().Result("echo")
 	})
