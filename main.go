@@ -82,6 +82,8 @@ func main() {
 	if err != nil {
 		agent.SyncFatalExit(err)
 	}
+	logsClient.WithDefaultLabel("service", "echo-private")
+	logsClient.WithDefaultLabel("service-pod", env.Env().String("HOSTNAME"))
 	agent.Listen(logger.WebRequest, "log-collector", logs.CreateLoggerListenerHTTPRequest(logsClient))
 	agent.Listen(logger.Silly, "log-collector", logs.CreateLoggerListenerInfo(logsClient))
 	agent.Listen(logger.Info, "log-collector", logs.CreateLoggerListenerInfo(logsClient))

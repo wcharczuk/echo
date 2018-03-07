@@ -49,15 +49,31 @@ func New(cfg *Config) (*Client, error) {
 	}
 
 	return &Client{
-		conn:       conn,
-		grpcSender: collectorv1.NewCollectorClient(conn),
+		conn:               conn,
+		defaultLabels:      map[string]string{},
+		defaultAnnotations: map[string]string{},
+		grpcSender:         collectorv1.NewCollectorClient(conn),
 	}, nil
 }
 
 // Client is a wrapping client for the collector endpoint.
 type Client struct {
-	conn       *grpc.ClientConn
-	grpcSender collectorv1.CollectorClient
+	conn               *grpc.ClientConn
+	defaultLabels      map[string]string
+	defaultAnnotations map[string]string
+	grpcSender         collectorv1.CollectorClient
+}
+
+// WithDefaultLabel sets a default label to inject into collected messages.
+func (c *Client) WithDefaultLabel(key, value string) *Client {
+	c.defaultLabels[key] = value
+	return c
+}
+
+// WithDefaultAnnotation sets a default label to inject into collected messages.
+func (c *Client) WithDefaultAnnotation(key, value string) *Client {
+	c.defaultAnnotations[key] = value
+	return c
 }
 
 // Close closes the underlying connection.
@@ -78,6 +94,7 @@ func (c *Client) Push(ctx context.Context, messages []logv1.Message) (rs *collec
 
 	var streamErr error
 	for _, msg := range messages {
+		c.injectDefaultLabels(&msg)
 		streamErr = stream.Send(&msg)
 		if streamErr != nil {
 			err = exception.Wrap(streamErr)
@@ -92,4 +109,22 @@ func (c *Client) Push(ctx context.Context, messages []logv1.Message) (rs *collec
 	}
 	rs = summary
 	return
+}
+
+func (c *Client) injectDefaultLabels(msg *logv1.Message) {
+	if msg.Meta.Labels == nil {
+		msg.Meta.Labels = map[string]string{}
+	}
+	for key, value := range c.defaultLabels {
+		msg.Meta.Labels[key] = value
+	}
+}
+
+func (c *Client) injectDefaultAnnoations(msg *logv1.Message) {
+	if msg.Meta.Annotations == nil {
+		msg.Meta.Annotations = map[string]string{}
+	}
+	for key, value := range c.defaultAnnotations {
+		msg.Meta.Annotations[key] = value
+	}
 }
