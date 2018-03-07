@@ -13,7 +13,7 @@ type ViewModel struct {
 
 // HasEnv returns if an env var is set.
 func (vm *ViewModel) HasEnv(key string) bool {
-	return env.Env().HasVar(key)
+	return env.Env().Has(key)
 }
 
 // Env returns a value from the environment.

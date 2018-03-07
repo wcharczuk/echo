@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -19,39 +18,16 @@ import (
 	env "github.com/blendlabs/go-util/env"
 )
 
-const (
-	// EnvironmentVariableBindAddr is an env var that determines (if set) what the bind address should be.
-	EnvironmentVariableBindAddr = "BIND_ADDR"
-
-	// EnvironmentVariablePort is an env var that determines what the default bind address port segment returns.
-	EnvironmentVariablePort = "PORT"
-
-	// EnvironmentVariableTLSCert is an env var that contains the TLS cert.
-	EnvironmentVariableTLSCert = "TLS_CERT"
-
-	// EnvironmentVariableTLSKey is an env var that contains the TLS key.
-	EnvironmentVariableTLSKey = "TLS_KEY"
-
-	// EnvironmentVariableTLSCertFile is an env var that contains the file path to the TLS cert.
-	EnvironmentVariableTLSCertFile = "TLS_CERT_FILE"
-
-	// EnvironmentVariableTLSKeyFile is an env var that contains the file path to the TLS key.
-	EnvironmentVariableTLSKeyFile = "TLS_KEY_FILE"
-
-	// DefaultPort is the default port the server binds to.
-	DefaultPort = "8080"
-)
-
 // New returns a new app.
 func New() *App {
 	views := NewViewCache()
 	vrp := &ViewResultProvider{views: views}
 	return &App{
 		auth:                  NewAuthManager(),
+		state:                 map[string]interface{}{},
 		views:                 views,
 		statics:               map[string]Fileserver{},
-		readTimeout:           5 * time.Second,
-		tlsConfig:             &tls.Config{},
+		readTimeout:           DefaultReadTimeout,
 		redirectTrailingSlash: true,
 		recoverPanics:         true,
 
@@ -62,12 +38,64 @@ func New() *App {
 	}
 }
 
+// NewFromEnv returns a new app from the environment.
+func NewFromEnv() *App {
+	return NewFromConfig(NewConfigFromEnv())
+}
+
+// NewFromConfig returns a new app from a given config.
+func NewFromConfig(cfg *Config) *App {
+	views, err := NewViewCacheFromConfig(&cfg.ViewCache)
+	if err != nil {
+		return &App{err: err}
+	}
+	vrp := &ViewResultProvider{views: views}
+
+	tlsConfig, err := cfg.TLS.GetConfig()
+	if err != nil {
+		return &App{err: err}
+	}
+
+	baseURL := cfg.GetBaseURL()
+	var base *url.URL
+	if len(baseURL) > 0 {
+		base, err = url.Parse(baseURL)
+		if err != nil {
+			return &App{err: err}
+		}
+	}
+
+	return &App{
+		auth:                   NewAuthManagerFromConfig(&cfg.Auth),
+		state:                  map[string]interface{}{},
+		views:                  views,
+		statics:                map[string]Fileserver{},
+		tlsConfig:              tlsConfig,
+		redirectTrailingSlash:  cfg.GetRedirectTrailingSlash(),
+		handleMethodNotAllowed: cfg.GetHandleMethodNotAllowed(),
+		handleOptions:          cfg.GetHandleOptions(),
+		recoverPanics:          cfg.GetRecoverPanics(),
+
+		bindAddr: cfg.GetBindAddr(),
+		baseURL:  base,
+
+		maxHeaderBytes:    cfg.GetMaxHeaderBytes(),
+		readHeaderTimeout: cfg.GetReadHeaderTimeout(),
+		readTimeout:       cfg.GetReadTimeout(),
+		writeTimeout:      cfg.GetWriteTimeout(),
+		idleTimeout:       cfg.GetIdleTimeout(),
+
+		viewProvider: vrp,
+		jsonProvider: &JSONResultProvider{},
+		xmlProvider:  &XMLResultProvider{},
+		textProvider: &TextResultProvider{},
+	}
+}
+
 // App is the server for the app.
 type App struct {
-	name     string
 	baseURL  *url.URL
 	bindAddr string
-	port     string
 
 	log   *logger.Logger
 	auth  *AuthManager
@@ -98,6 +126,7 @@ type App struct {
 	xmlProvider  *XMLResultProvider
 	textProvider *TextResultProvider
 
+	maxHeaderBytes    int
 	readTimeout       time.Duration
 	readHeaderTimeout time.Duration
 	writeTimeout      time.Duration
@@ -111,18 +140,9 @@ type App struct {
 	tx  *sql.Tx
 }
 
-// Name returns the app name.
-func (a *App) Name() string {
-	return a.name
-}
-
-// WithName sets the app field `Name` and returns a reference to the app for building apps with a fluent api.
-func (a *App) WithName(name string) *App {
-	a.name = name
-	if a.log != nil {
-		a.log.Writer().WithLabel(name)
-	}
-	return a
+// Err returns an initialization error.
+func (a *App) Err() error {
+	return a.err
 }
 
 // State is a bag for common app state.
@@ -139,6 +159,28 @@ func (a *App) WithState(key string, value interface{}) *App {
 // SetState sets app state.
 func (a *App) SetState(key string, value interface{}) {
 	a.state[key] = value
+}
+
+// HandleMethodNotAllowed returns if we should handle unhandled verbs.
+func (a *App) HandleMethodNotAllowed() bool {
+	return a.handleMethodNotAllowed
+}
+
+// WithHandleMethodNotAllowed sets if we should handlem ethod not allowed.
+func (a *App) WithHandleMethodNotAllowed(handle bool) *App {
+	a.handleMethodNotAllowed = handle
+	return a
+}
+
+// HandleOptions returns if we should handle OPTIONS requests.
+func (a *App) HandleOptions() bool {
+	return a.handleOptions
+}
+
+// WithHandleOptions returns if we should handle OPTIONS requests.
+func (a *App) WithHandleOptions(handle bool) *App {
+	a.handleOptions = handle
+	return a
 }
 
 // RecoverPanics returns if the app recovers panics.
@@ -175,6 +217,28 @@ func (a *App) SetBaseURL(baseURL string) error {
 	return nil
 }
 
+// MaxHeaderBytes returns the app max header bytes.
+func (a *App) MaxHeaderBytes() int {
+	return a.maxHeaderBytes
+}
+
+// WithMaxHeaderBytes sets the max header bytes value and returns a reference.
+func (a *App) WithMaxHeaderBytes(byteCount int) *App {
+	a.maxHeaderBytes = byteCount
+	return a
+}
+
+// ReadHeaderTimeout returns the read header timeout for the server.
+func (a *App) ReadHeaderTimeout() time.Duration {
+	return a.readHeaderTimeout
+}
+
+// WithReadHeaderTimeout returns the read header timeout for the server.
+func (a *App) WithReadHeaderTimeout(timeout time.Duration) *App {
+	a.readHeaderTimeout = timeout
+	return a
+}
+
 // ReadTimeout returns the read timeout for the server.
 func (a *App) ReadTimeout() time.Duration {
 	return a.readTimeout
@@ -186,34 +250,61 @@ func (a *App) WithReadTimeout(timeout time.Duration) *App {
 	return a
 }
 
+// IdleTimeout is the time before we close a connection.
+func (a *App) IdleTimeout() time.Duration {
+	return a.idleTimeout
+}
+
+// WithIdleTimeout sets the idle timeout.
+func (a *App) WithIdleTimeout(timeout time.Duration) *App {
+	a.idleTimeout = timeout
+	return a
+}
+
 // WriteTimeout returns the write timeout for the server.
 func (a *App) WriteTimeout() time.Duration {
 	return a.writeTimeout
 }
 
-// WithWriteTimeout sets teh write timeout for the server and returns a reference to the app for building apps with a fluent api.
+// WithWriteTimeout sets the write timeout for the server and returns a reference to the app for building apps with a fluent api.
 func (a *App) WithWriteTimeout(timeout time.Duration) *App {
 	a.writeTimeout = timeout
 	return a
 }
 
-// WithTLS sets the app to use TLS when listening, and returns a reference to the app for building apps with a fluent api.
-func (a *App) WithTLS(tlsCert, tlsKey []byte) *App {
-	if err := a.SetTLS(tlsCert, tlsKey); err != nil {
+// WithTLSConfig sets the tls config for the app.
+func (a *App) WithTLSConfig(config *tls.Config) *App {
+	a.SetTLSConfig(config)
+	return a
+}
+
+// SetTLSConfig sets the tls config.
+func (a *App) SetTLSConfig(config *tls.Config) {
+	a.tlsConfig = config
+}
+
+// TLSConfig returns the app tls config.
+func (a *App) TLSConfig() *tls.Config {
+	return a.tlsConfig
+}
+
+// WithTLSCert sets the app to use TLS when listening, and returns a reference to the app for building apps with a fluent api.
+func (a *App) WithTLSCert(tlsCert, tlsKey []byte) *App {
+	if err := a.SetTLSCert(tlsCert, tlsKey); err != nil {
 		a.err = err
 	}
 	return a
 }
 
-// SetTLS sets the app to use TLS.
-func (a *App) SetTLS(tlsCert, tlsKey []byte) error {
+// SetTLSCert sets the app to use TLS with a given cert.
+func (a *App) SetTLSCert(tlsCert, tlsKey []byte) error {
 	cert, err := tls.X509KeyPair(tlsCert, tlsKey)
 	if err != nil {
 		return err
 	}
-	a.tlsConfig.Certificates = []tls.Certificate{cert}
-	a.listenTLS = true
-	a.auth.SetCookieAsHTTPSOnly(true)
+	a.tlsConfig = &tls.Config{
+		Certificates: []tls.Certificate{cert},
+	}
 	return nil
 }
 
@@ -235,7 +326,7 @@ func (a *App) SetTLSFromFiles(tlsCertPath, tlsKeyPath string) error {
 		return exception.Wrap(err)
 	}
 
-	return a.SetTLS(cert, key)
+	return a.SetTLSCert(cert, key)
 }
 
 // WithTLSFromEnv reads TLS settings from the environment, and returns a reference to the app for building apps with a fluent api.
@@ -254,7 +345,7 @@ func (a *App) SetTLSFromEnv() error {
 	tlsKeyPath := env.Env().String(EnvironmentVariableTLSKeyFile)
 
 	if len(tlsCert) > 0 && len(tlsKey) > 0 {
-		return a.SetTLS(tlsCert, tlsKey)
+		return a.SetTLSCert(tlsCert, tlsKey)
 	} else if len(tlsCertPath) > 0 && len(tlsKeyPath) > 0 {
 		return a.SetTLSFromFiles(tlsCertPath, tlsKeyPath)
 	}
@@ -269,7 +360,7 @@ func (a *App) WithTLSClientCertPool(certs ...[]byte) *App {
 	return a
 }
 
-// SetTLSClientCertPool set the client cert pool from a given pem.
+// SetTLSClientCertPool set the client cert pool from a given set of pems.
 func (a *App) SetTLSClientCertPool(certs ...[]byte) error {
 	a.tlsConfig.ClientCAs = x509.NewCertPool()
 	for _, cert := range certs {
@@ -300,12 +391,24 @@ func (a *App) Logger() *logger.Logger {
 }
 
 // WithLogger sets the app logger agent and returns a reference to the app.
+// It also sets underlying loggers in any child resources like providers and the auth manager.
 func (a *App) WithLogger(log *logger.Logger) *App {
 	a.log = log
-	a.viewProvider.log = log
-	a.jsonProvider.log = log
-	a.xmlProvider.log = log
-	a.textProvider.log = log
+	if a.viewProvider != nil {
+		a.viewProvider.log = log
+	}
+	if a.jsonProvider != nil {
+		a.jsonProvider.log = log
+	}
+	if a.xmlProvider != nil {
+		a.xmlProvider.log = log
+	}
+	if a.textProvider != nil {
+		a.textProvider.log = log
+	}
+	if a.auth != nil {
+		a.auth.log = log
+	}
 	return a
 }
 
@@ -315,36 +418,31 @@ func (a *App) Auth() *AuthManager {
 }
 
 // WithPort sets the port for the bind address of the app, and returns a reference to the app.
-func (a *App) WithPort(port string) *App {
-	a.err = a.SetPort(port)
+func (a *App) WithPort(port int32) *App {
+	a.SetPort(port)
 	return a
 }
 
 // SetPort sets the port the app listens on, typically to `:%d` which indicates listen on any interface.
-func (a *App) SetPort(port string) error {
-	if _, err := strconv.Atoi(port); err != nil {
-		return exception.Wrap(err)
-	}
-	a.bindAddr = fmt.Sprintf(":%s", port)
-	return nil
+func (a *App) SetPort(port int32) {
+	a.bindAddr = fmt.Sprintf(":%v", port)
 }
 
 // WithPortFromEnv sets the port from an environment variable, and returns a reference to the app.
 func (a *App) WithPortFromEnv() *App {
-	if env.Env().HasVar(EnvironmentVariablePort) {
-		if err := a.SetPort(env.Env().String(EnvironmentVariablePort)); err != nil {
-			a.err = err
-		}
-	}
+	a.SetPortFromEnv()
 	return a
 }
 
 // SetPortFromEnv sets the port from an environment variable, and returns a reference to the app.
-func (a *App) SetPortFromEnv() error {
-	if env.Env().HasVar(EnvironmentVariablePort) {
-		return a.SetPort(env.Env().String(EnvironmentVariablePort))
+func (a *App) SetPortFromEnv() {
+	if env.Env().Has(EnvironmentVariablePort) {
+		port, err := env.Env().Int32(EnvironmentVariablePort)
+		if err != nil {
+			a.err = err
+		}
+		a.bindAddr = fmt.Sprintf(":%v", port)
 	}
-	return nil
 }
 
 // BindAddr returns the address the server will bind to.
@@ -364,29 +462,10 @@ func (a *App) WithBindAddrFromEnv() *App {
 	return a
 }
 
-// ResolveBindAddr resolves the final BindAddr from a schedule of sources:
-// - Manually setting the a.BindAddr with `WithPort`, `SetPort`, `WithPortFromEnv`, `SetPortFromEnv`
-//   `WithBindAddr`, `SetBindAddr`, `WithBindAddrFromEnv`, `SetBindAddrFromEnv`
-// - The `BIND_ADDR` environment variable (if set)
-// - The `PORT` environment variable(if set)
-// - The default, `:8080`
-func (a *App) ResolveBindAddr() string {
-	if len(a.bindAddr) > 0 {
-		return a.bindAddr
-	}
-	if env.Env().HasVar(EnvironmentVariableBindAddr) {
-		return env.Env().String(EnvironmentVariableBindAddr)
-	}
-	if env.Env().HasVar(EnvironmentVariablePort) {
-		return fmt.Sprintf(":%s", env.Env().String(EnvironmentVariablePort))
-	}
-
-	return fmt.Sprintf(":%s", DefaultPort)
-}
-
-// SetDefaultMiddleware sets the application wide default middleware.
-func (a *App) SetDefaultMiddleware(middleware ...Middleware) {
+// WithDefaultMiddleware sets the application wide default middleware.
+func (a *App) WithDefaultMiddleware(middleware ...Middleware) *App {
 	a.defaultMiddleware = middleware
+	return a
 }
 
 // DefaultMiddleware returns the default middleware.
@@ -403,8 +482,9 @@ func (a *App) OnStart(action AppStartDelegate) {
 // Server returns the basic http.Server for the app.
 func (a *App) Server() *http.Server {
 	return &http.Server{
-		Addr:              a.ResolveBindAddr(),
+		Addr:              a.BindAddr(),
 		Handler:           a,
+		MaxHeaderBytes:    a.maxHeaderBytes,
 		ReadTimeout:       a.readTimeout,
 		ReadHeaderTimeout: a.readHeaderTimeout,
 		WriteTimeout:      a.writeTimeout,
@@ -447,7 +527,7 @@ func (a *App) StartWithServer(server *http.Server) (err error) {
 	}
 
 	serverProtocol := "http"
-	if a.listenTLS {
+	if server.TLSConfig != nil {
 		serverProtocol = "https (tls)"
 	}
 
@@ -459,11 +539,11 @@ func (a *App) StartWithServer(server *http.Server) (err error) {
 		a.log.Trigger(NewAppStartCompleteEvent(a, time.Since(start), err))
 	}
 
-	if a.tlsConfig.ClientCAs != nil {
+	if server.TLSConfig != nil && server.TLSConfig.ClientCAs != nil {
 		a.syncInfof("%s using client cert pool with (%d) client certs", serverProtocol, len(a.tlsConfig.ClientCAs.Subjects()))
 	}
 
-	if a.listenTLS {
+	if server.TLSConfig != nil {
 		err = exception.Wrap(server.ListenAndServeTLS("", ""))
 		return
 	}
@@ -753,7 +833,7 @@ func (a *App) renderAction(action Action) Handler {
 		context := a.createCtx(response, r, route, p, state)
 		context.onRequestStart()
 		if a.log != nil {
-			a.log.Trigger(NewRequestStartEvent(context))
+			a.log.Trigger(a.loggerRequestStartEvent(context))
 		}
 
 		result := action(context)
@@ -780,9 +860,36 @@ func (a *App) renderAction(action Action) Handler {
 
 		// effectively "request complete"
 		if a.log != nil {
-			a.log.Trigger(NewRequestEvent(context))
+			a.log.Trigger(a.loggerRequestEvent(context))
 		}
 	}
+}
+
+func (a *App) loggerRequestStartEvent(ctx *Ctx) *logger.WebRequestEvent {
+	event := logger.NewWebRequestStart(ctx.Request).
+		WithState(ctx.state)
+
+	if ctx.Route() != nil {
+		event = event.WithRoute(ctx.Route().String())
+	}
+	return event
+}
+
+func (a *App) loggerRequestEvent(ctx *Ctx) *logger.WebRequestEvent {
+	event := logger.NewWebRequest(ctx.Request).
+		WithStatusCode(ctx.statusCode).
+		WithElapsed(ctx.Elapsed()).
+		WithContentLength(int64(ctx.contentLength)).
+		WithState(ctx.state)
+
+	if ctx.Route() != nil {
+		event = event.WithRoute(ctx.Route().String())
+	}
+	if ctx.Response.Header() != nil {
+		event = event.WithContentType(ctx.Response.Header().Get(HeaderContentType))
+		event = event.WithContentEncoding(ctx.Response.Header().Get(HeaderContentEncoding))
+	}
+	return event
 }
 
 func (a *App) recover(w http.ResponseWriter, req *http.Request) {

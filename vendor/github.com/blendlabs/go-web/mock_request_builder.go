@@ -153,9 +153,9 @@ func (mrb *MockRequestBuilder) WithResponseBuffer(buffer *bytes.Buffer) *MockReq
 
 // WithTx sets the transaction for the request.
 func (mrb *MockRequestBuilder) WithTx(tx *sql.Tx, keys ...string) *MockRequestBuilder {
-	key := "tx"
+	key := StateKeyTx
 	if keys != nil && len(keys) > 0 {
-		key = TxStateKeyPrefix + keys[0]
+		key = StateKeyPrefixTx + keys[0]
 	}
 	mrb.WithState(key, tx)
 	return mrb
@@ -163,9 +163,9 @@ func (mrb *MockRequestBuilder) WithTx(tx *sql.Tx, keys ...string) *MockRequestBu
 
 // Tx returns the transaction for the request.
 func (mrb *MockRequestBuilder) Tx(keys ...string) *sql.Tx {
-	key := "tx"
+	key := StateKeyTx
 	if keys != nil && len(keys) > 0 {
-		key = TxStateKeyPrefix + keys[0]
+		key = StateKeyPrefixTx + keys[0]
 	}
 	if typed, isTyped := mrb.State(key).(*sql.Tx); isTyped {
 		return typed

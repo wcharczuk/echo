@@ -7,8 +7,8 @@ import (
 )
 
 // Messagef returns a new Message Event.
-func Messagef(flag Flag, format string, args ...interface{}) MessageEvent {
-	return MessageEvent{
+func Messagef(flag Flag, format string, args ...Any) *MessageEvent {
+	return &MessageEvent{
 		flag:    flag,
 		ts:      time.Now().UTC(),
 		message: fmt.Sprintf(format, args...),
@@ -16,8 +16,8 @@ func Messagef(flag Flag, format string, args ...interface{}) MessageEvent {
 }
 
 // MessagefWithFlagTextColor returns a new Message Event with a given flag text color.
-func MessagefWithFlagTextColor(flag Flag, flagColor AnsiColor, format string, args ...interface{}) MessageEvent {
-	return MessageEvent{
+func MessagefWithFlagTextColor(flag Flag, flagColor AnsiColor, format string, args ...Any) *MessageEvent {
+	return &MessageEvent{
 		flag:      flag,
 		flagColor: flagColor,
 		ts:        time.Now().UTC(),
@@ -26,9 +26,9 @@ func MessagefWithFlagTextColor(flag Flag, flagColor AnsiColor, format string, ar
 }
 
 // NewMessageEventListener returns a new message event listener.
-func NewMessageEventListener(listener func(me MessageEvent)) Listener {
+func NewMessageEventListener(listener func(me *MessageEvent)) Listener {
 	return func(e Event) {
-		if typed, isTyped := e.(MessageEvent); isTyped {
+		if typed, isTyped := e.(*MessageEvent); isTyped {
 			listener(typed)
 		}
 	}
@@ -42,9 +42,21 @@ type MessageEvent struct {
 	message   string
 }
 
+// WithFlag sets the message flag.
+func (me *MessageEvent) WithFlag(flag Flag) *MessageEvent {
+	me.flag = flag
+	return me
+}
+
 // Flag returns the message flag.
 func (me MessageEvent) Flag() Flag {
 	return me.flag
+}
+
+// WithTimestamp sets the message timestamp.
+func (me *MessageEvent) WithTimestamp(ts time.Time) *MessageEvent {
+	me.ts = ts
+	return me
 }
 
 // Timestamp returns the message timestamp.
@@ -52,9 +64,21 @@ func (me MessageEvent) Timestamp() time.Time {
 	return me.ts
 }
 
+// WithMessage sets the message.
+func (me *MessageEvent) WithMessage(message string) *MessageEvent {
+	me.message = message
+	return me
+}
+
 // Message returns the message.
 func (me MessageEvent) Message() string {
 	return me.message
+}
+
+// WithFlagTextColor sets the message flag text color.
+func (me *MessageEvent) WithFlagTextColor(color AnsiColor) *MessageEvent {
+	me.flagColor = color
+	return me
 }
 
 // FlagTextColor returns a custom color for the flag.

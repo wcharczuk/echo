@@ -9,12 +9,6 @@ import (
 )
 
 const (
-	// FlagWebRequestStart is an aliased event flag.
-	FlagWebRequestStart = logger.WebRequestStart
-
-	// FlagWebRequest is an aliased event flag.
-	FlagWebRequest = logger.WebRequest
-
 	// FlagAppStart fires when the app is starting.
 	FlagAppStart logger.Flag = "web.app.start"
 
@@ -24,112 +18,6 @@ const (
 	// FlagAppExit fires when an app exits.
 	FlagAppExit logger.Flag = "web.app.exit"
 )
-
-// NewRequestStartEvent returns a new request start event.
-func NewRequestStartEvent(ctx *Ctx) RequestStartEvent {
-	return RequestStartEvent{
-		ts:  time.Now().UTC(),
-		ctx: ctx,
-	}
-}
-
-// NewRequestStartEventListener returns a new request start event listener.
-func NewRequestStartEventListener(listener func(me RequestStartEvent)) logger.Listener {
-	return func(e logger.Event) {
-		if typed, isTyped := e.(RequestStartEvent); isTyped {
-			listener(typed)
-		}
-	}
-}
-
-// RequestStartEvent is an event.
-type RequestStartEvent struct {
-	ts  time.Time
-	ctx *Ctx
-}
-
-// Flag returns the logger flag.
-func (re RequestStartEvent) Flag() logger.Flag {
-	return FlagWebRequestStart
-}
-
-// Timestamp returns the timestamp for a
-func (re RequestStartEvent) Timestamp() time.Time {
-	return re.ts
-}
-
-// Ctx returns the request ctx.
-func (re RequestStartEvent) Ctx() *Ctx {
-	return re.ctx
-}
-
-// WriteText implements logger.TextWritable.
-func (re RequestStartEvent) WriteText(tf logger.TextFormatter, buf *bytes.Buffer) {
-	logger.TextWriteRequestStart(tf, buf, re.ctx.Request)
-}
-
-// WriteJSON implements logger.JSONWritable.
-func (re RequestStartEvent) WriteJSON() logger.JSONObj {
-	return logger.JSONWriteRequestStart(re.ctx.Request)
-}
-
-// NewRequestEvent returns a new request event.
-func NewRequestEvent(ctx *Ctx) RequestEvent {
-	return RequestEvent{
-		ts:  time.Now().UTC(),
-		ctx: ctx,
-	}
-}
-
-// NewRequestEventWithErr returns a new request event with an error.
-func NewRequestEventWithErr(ctx *Ctx, err error) RequestEvent {
-	return RequestEvent{
-		ts:  time.Now().UTC(),
-		ctx: ctx,
-		err: err,
-	}
-}
-
-// NewRequestEventListener returns a new request event listener.
-func NewRequestEventListener(listener func(me RequestEvent)) logger.Listener {
-	return func(e logger.Event) {
-		if typed, isTyped := e.(RequestEvent); isTyped {
-			listener(typed)
-		}
-	}
-}
-
-// RequestEvent is an event.
-type RequestEvent struct {
-	ts  time.Time
-	ctx *Ctx
-	err error
-}
-
-// Flag returns the logger flag.
-func (re RequestEvent) Flag() logger.Flag {
-	return FlagWebRequest
-}
-
-// Timestamp returns the timestamp for a
-func (re RequestEvent) Timestamp() time.Time {
-	return re.ts
-}
-
-// Ctx returns the request ctx.
-func (re RequestEvent) Ctx() *Ctx {
-	return re.ctx
-}
-
-// WriteText implements logger.TextWritable.
-func (re RequestEvent) WriteText(tf logger.TextFormatter, buf *bytes.Buffer) {
-	logger.TextWriteRequest(tf, buf, re.ctx.Request, re.ctx.statusCode, re.ctx.contentLength, re.ctx.Elapsed())
-}
-
-// WriteJSON implements logger.JSONWritable.
-func (re RequestEvent) WriteJSON() logger.JSONObj {
-	return logger.JSONWriteRequest(re.ctx.Request, re.ctx.statusCode, re.ctx.contentLength, re.ctx.Elapsed())
-}
 
 // NewAppStartEvent creates a new app start event.
 func NewAppStartEvent(app *App) AppStartEvent {
@@ -215,7 +103,7 @@ type AppStartCompleteEvent struct {
 
 // Flag returns the logger flag.
 func (ae AppStartCompleteEvent) Flag() logger.Flag {
-	return FlagAppStart
+	return FlagAppStartComplete
 }
 
 // Timestamp returns the timestamp for a

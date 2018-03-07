@@ -6,11 +6,6 @@ import (
 	"github.com/blendlabs/go-util/env"
 )
 
-var (
-	// DefaultFlags is the default verbosity for a diagnostics agent inited from the environment.
-	DefaultFlags = NewFlagSet(Fatal, Error, Info)
-)
-
 // NewFlagSet returns a new FlagSet with the given flags enabled.
 func NewFlagSet(flags ...Flag) *FlagSet {
 	efs := &FlagSet{
@@ -38,23 +33,21 @@ func NewFlagSetNone() *FlagSet {
 	}
 }
 
-// NewFlagSetFromEnv returns a new FlagSet from the environment.
-func NewFlagSetFromEnv() *FlagSet {
-	envEventsFlag := env.Env().String(EnvVarLogEvents)
-	if len(envEventsFlag) > 0 {
-		return NewFlagSetFromCSV(envEventsFlag)
-	}
-	return NewFlagSet()
+// NewHiddenFlagSetFromEnv returns the hidden FlagSet from the environment.
+func NewHiddenFlagSetFromEnv() *FlagSet {
+	return NewFlagSetFromValues(env.Env().CSV(EnvVarHiddenEventFlags)...)
 }
 
-// NewFlagSetFromCSV returns a new event flag set from a csv of event flags.
-// These flags are case insensitive.
-func NewFlagSetFromCSV(flagCSV string) *FlagSet {
+// NewFlagSetFromEnv returns a the enabled FlagSet from the environment.
+func NewFlagSetFromEnv() *FlagSet {
+	return NewFlagSetFromValues(env.Env().CSV(EnvVarEventFlags)...)
+}
+
+// NewFlagSetFromValues returns a new event flag set from an array of flag values.
+func NewFlagSetFromValues(flags ...string) *FlagSet {
 	flagSet := &FlagSet{
 		flags: map[Flag]bool{},
 	}
-
-	flags := strings.Split(flagCSV, ",")
 
 	for _, flag := range flags {
 		parsedFlag := Flag(strings.Trim(strings.ToLower(flag), " \t\n"))
@@ -64,6 +57,7 @@ func NewFlagSetFromCSV(flagCSV string) *FlagSet {
 
 		if string(parsedFlag) == string(FlagNone) {
 			flagSet.none = true
+			return flagSet
 		}
 
 		if strings.HasPrefix(string(parsedFlag), "-") {

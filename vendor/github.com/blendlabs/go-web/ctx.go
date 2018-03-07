@@ -27,6 +27,10 @@ const (
 	StringEmpty = ""
 )
 
+// Request is an alias to Ctx.
+// It is part of a longer term transition.
+type Request = Ctx
+
 // NewCtx returns a new hc context.
 func NewCtx(w ResponseWriter, r *http.Request, p RouteParameters, s State) *Ctx {
 	ctx := &Ctx{
@@ -78,9 +82,9 @@ type Ctx struct {
 
 // WithTx sets a transaction on the context.
 func (rc *Ctx) WithTx(tx *sql.Tx, keys ...string) *Ctx {
-	key := "tx"
+	key := StateKeyTx
 	if keys != nil && len(keys) > 0 {
-		key = TxStateKeyPrefix + keys[0]
+		key = StateKeyPrefixTx + keys[0]
 	}
 	rc.SetState(key, tx)
 	return rc
@@ -280,13 +284,14 @@ func (rc *Ctx) ParamBool(name string) (bool, error) {
 func (rc *Ctx) PostBody() ([]byte, error) {
 	var err error
 	if len(rc.postBody) == 0 {
-		defer rc.Request.Body.Close()
-		rc.postBody, err = ioutil.ReadAll(rc.Request.Body)
+		if rc.Request != nil && rc.Request.Body != nil {
+			defer rc.Request.Body.Close()
+			rc.postBody, err = ioutil.ReadAll(rc.Request.Body)
+		}
 		if err != nil {
 			return nil, err
 		}
 	}
-
 	return rc.postBody, nil
 }
 

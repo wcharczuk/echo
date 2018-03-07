@@ -7,8 +7,6 @@ import (
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/blendlabs/go-util/env"
 )
 
 const (
@@ -20,8 +18,8 @@ const (
 
 	// DefaultTextWriterUseColor is a default setting for writers.
 	DefaultTextWriterUseColor = true
-	// DefaultTextWriterShowTimestamp is a default setting for writers.
-	DefaultTextWriterShowTimestamp = true
+	// DefaultTextWriterShowTime is a default setting for writers.
+	DefaultTextWriterShowTime = true
 	// DefaultTextWriterShowLabel is a default setting for writers.
 	DefaultTextWriterShowLabel = true
 )
@@ -43,29 +41,39 @@ type TextFormatter interface {
 	ColorizeByStatusCode(code int, value string) string
 }
 
-// NewTextWriter returns a new text writer for an output.
+// NewTextWriter returns a new text writer for a given output.
 func NewTextWriter(output io.Writer) *TextWriter {
 	return &TextWriter{
-		output:        NewInterlockedWriter(output),
-		showLabel:     DefaultTextWriterShowLabel,
-		showTimestamp: DefaultTextWriterShowTimestamp,
-		useColor:      DefaultTextWriterUseColor,
-		timeFormat:    DefaultTextTimeFormat,
-		bufferPool:    NewBufferPool(DefaultBufferPoolSize),
+		output:     NewInterlockedWriter(output),
+		bufferPool: NewBufferPool(DefaultBufferPoolSize),
+		showLabel:  DefaultTextWriterShowLabel,
+		showTime:   DefaultTextWriterShowTime,
+		useColor:   DefaultTextWriterUseColor,
+		timeFormat: DefaultTextTimeFormat,
 	}
+}
+
+// NewTextWriterStdout returns a new text writer to stdout/stderr.
+func NewTextWriterStdout() *TextWriter {
+	return NewTextWriter(os.Stdout).WithErrorOutput(os.Stderr)
 }
 
 // NewTextWriterFromEnv returns a new text writer from the environment.
 func NewTextWriterFromEnv() *TextWriter {
+	return NewTextWriterFromConfig(NewTextWriterConfigFromEnv())
+}
+
+// NewTextWriterFromConfig creates a new text writer from a given config.
+func NewTextWriterFromConfig(cfg *TextWriterConfig) *TextWriter {
 	return &TextWriter{
-		output:        NewInterlockedWriter(os.Stdout),
-		errorOutput:   NewInterlockedWriter(os.Stderr),
-		showTimestamp: env.Env().Bool(EnvVarShowTimestamp, DefaultTextWriterShowTimestamp),
-		useColor:      env.Env().Bool(EnvVarUseColor, DefaultTextWriterUseColor),
-		showLabel:     env.Env().Bool(EnvVarShowLabel, DefaultTextWriterShowLabel),
-		label:         env.Env().String(EnvVarLabel),
-		timeFormat:    env.Env().String(EnvVarTextTimeFormat, DefaultTextTimeFormat),
-		bufferPool:    NewBufferPool(DefaultBufferPoolSize),
+		output:      NewInterlockedWriter(os.Stdout),
+		errorOutput: NewInterlockedWriter(os.Stderr),
+		bufferPool:  NewBufferPool(DefaultBufferPoolSize),
+		showTime:    cfg.GetShowTime(),
+		showLabel:   cfg.GetShowLabel(),
+		useColor:    cfg.GetUseColor(),
+		label:       cfg.GetLabel(),
+		timeFormat:  cfg.GetTimeFormat(),
 	}
 }
 
@@ -74,14 +82,19 @@ type TextWriter struct {
 	output      io.Writer
 	errorOutput io.Writer
 
-	showTimestamp bool
-	showLabel     bool
-	useColor      bool
+	showTime  bool
+	showLabel bool
+	useColor  bool
 
 	timeFormat string
 	label      string
 
 	bufferPool *BufferPool
+}
+
+// OutputFormat returns the output format.
+func (wr *TextWriter) OutputFormat() OutputFormat {
+	return OutputFormatJSON
 }
 
 // UseColor is a formatting option.
@@ -95,14 +108,14 @@ func (wr *TextWriter) WithUseColor(useColor bool) *TextWriter {
 	return wr
 }
 
-// ShowTimestamp is a formatting option.
-func (wr *TextWriter) ShowTimestamp() bool {
-	return wr.showTimestamp
+// ShowTime is a formatting option.
+func (wr *TextWriter) ShowTime() bool {
+	return wr.showTime
 }
 
 // WithShowTimestamp sets a formatting option.
-func (wr *TextWriter) WithShowTimestamp(showTimestamp bool) *TextWriter {
-	wr.showTimestamp = showTimestamp
+func (wr *TextWriter) WithShowTimestamp(showTime bool) *TextWriter {
+	wr.showTime = showTime
 	return wr
 }
 
@@ -235,7 +248,7 @@ func (wr *TextWriter) write(output io.Writer, e Event) error {
 	buf := wr.bufferPool.Get()
 	defer wr.bufferPool.Put(buf)
 
-	if wr.showTimestamp {
+	if wr.showTime {
 		buf.WriteString(wr.FormatTimestamp(e.Timestamp()))
 		buf.WriteRune(RuneSpace)
 	}

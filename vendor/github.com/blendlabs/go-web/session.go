@@ -21,8 +21,20 @@ type Session struct {
 	UserID     string                 `json:"userID" yaml:"userID"`
 	SessionID  string                 `json:"sessionID" yaml:"sessionID"`
 	CreatedUTC time.Time              `json:"createdUTC" yaml:"createdUTC"`
+	ExpiresUTC *time.Time             `json:"expiresUTC" yaml:"expiresUTC"`
 	State      map[string]interface{} `json:"state,omitempty" yaml:"state,omitempty"`
 	Mutex      *sync.RWMutex          `json:"-" yaml:"-"`
+}
+
+// IsExpired returns if the session is expired.
+func (s *Session) IsExpired() bool {
+	if s == nil {
+		return false
+	}
+	if s.ExpiresUTC == nil {
+		return false
+	}
+	return s.ExpiresUTC.Before(time.Now().UTC())
 }
 
 func (s *Session) ensureMutex() {
@@ -32,7 +44,11 @@ func (s *Session) ensureMutex() {
 }
 
 // IsZero returns if the object is set or not.
+// It will return true if either the userID or the sessionID are unset.
 func (s *Session) IsZero() bool {
+	if s == nil {
+		return true
+	}
 	return len(s.UserID) == 0 || len(s.SessionID) == 0
 }
 

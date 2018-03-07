@@ -27,3 +27,19 @@ const (
 
 // Flag represents an event type that can be enabled or disabled.
 type Flag string
+
+// AsFlags casts a variadic list of strings to an array of Flag.
+func AsFlags(values ...string) (output []Flag) {
+	for _, v := range values {
+		output = append(output, Flag(v))
+	}
+	return
+}
+
+// AsStrings casts a variadic list of flags to an array of strings.
+func AsStrings(values ...Flag) (output []string) {
+	for _, v := range values {
+		output = append(output, string(v))
+	}
+	return
+}

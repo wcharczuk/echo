@@ -7,6 +7,18 @@ import (
 	"github.com/blendlabs/go-util/env"
 )
 
+// OutputFormat is a writer output format.
+type OutputFormat string
+
+const (
+	// OutputFormatJSON is an output format.
+	OutputFormatJSON OutputFormat = "json"
+	// OutputFormatText is an output format.
+	OutputFormatText OutputFormat = "text"
+	// Sometime in the future ...
+	// OutputFormatProtobuf = "protobuf"
+)
+
 // Writer is a type that can consume events.
 type Writer interface {
 	Label() string
@@ -15,17 +27,26 @@ type Writer interface {
 	WriteError(Event) error
 	Output() io.Writer
 	ErrorOutput() io.Writer
+	OutputFormat() OutputFormat
+}
+
+// NewWriter creates a new writer based on a given format.
+// It reads the writer settings from the environment.
+func NewWriter(format OutputFormat) Writer {
+	switch OutputFormat(strings.ToLower(string(format))) {
+	case OutputFormatJSON:
+		return NewJSONWriterFromEnv()
+	case OutputFormatText:
+		return NewTextWriterFromEnv()
+	}
+
+	panic("invalid writer output format")
 }
 
 // NewWriterFromEnv returns a new writer based on the environment variable `LOG_FORMAT`.
 func NewWriterFromEnv() Writer {
 	if format := env.Env().String(EnvVarFormat); len(format) > 0 {
-		switch strings.ToLower(format) {
-		case "json":
-			return NewJSONWriterFromEnv()
-		case "text":
-			return NewTextWriterFromEnv()
-		}
+		return NewWriter(OutputFormat(format))
 	}
 	return NewTextWriterFromEnv()
 }

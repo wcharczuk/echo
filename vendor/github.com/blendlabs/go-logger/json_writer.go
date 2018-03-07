@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-
-	"github.com/blendlabs/go-util/env"
 )
 
 const (
@@ -21,22 +19,47 @@ const (
 	JSONFieldElapsed = "elapsed"
 	// JSONFieldErr is a common json field.
 	JSONFieldErr = "err"
+
+	// DefaultJSONWriterPretty is a default.
+	DefaultJSONWriterPretty = false
 )
 
-// JSONObj is a type alias for map[string]interface{}
-type JSONObj = map[string]interface{}
+// JSONObj is a type alias for map[string]Any
+type JSONObj = map[string]Any
 
 // JSONWritable is a type with a custom formater for json writing.
 type JSONWritable interface {
 	WriteJSON() JSONObj
 }
 
-// NewJSONWriterFromEnv returns a new json writer from the environment.
-func NewJSONWriterFromEnv() *JSONWriter {
+// NewJSONWriter returns a json writer with defaults.
+func NewJSONWriter() *JSONWriter {
 	return &JSONWriter{
 		output:      NewInterlockedWriter(os.Stdout),
 		errorOutput: NewInterlockedWriter(os.Stderr),
-		pretty:      env.Env().Bool(EnvVarJSONPretty),
+		pretty:      DefaultJSONWriterPretty,
+	}
+}
+
+// NewJSONWriterForOutput returns a new json writer for a given output.
+func NewJSONWriterForOutput(output io.Writer) *JSONWriter {
+	return &JSONWriter{
+		output: NewInterlockedWriter(output),
+		pretty: DefaultJSONWriterPretty,
+	}
+}
+
+// NewJSONWriterFromEnv returns a new json writer from the environment.
+func NewJSONWriterFromEnv() *JSONWriter {
+	return NewJSONWriterFromConfig(NewJSONWriterConfigFromEnv())
+}
+
+// NewJSONWriterFromConfig returns a new json writer from a config.
+func NewJSONWriterFromConfig(cfg *JSONWriterConfig) *JSONWriter {
+	return &JSONWriter{
+		output:      NewInterlockedWriter(os.Stdout),
+		errorOutput: NewInterlockedWriter(os.Stderr),
+		pretty:      cfg.GetPretty(),
 	}
 }
 
@@ -46,6 +69,11 @@ type JSONWriter struct {
 	errorOutput io.Writer
 	label       string
 	pretty      bool
+}
+
+// OutputFormat returns the output format.
+func (jw *JSONWriter) OutputFormat() OutputFormat {
+	return OutputFormatJSON
 }
 
 // WithOutput sets the primary output.

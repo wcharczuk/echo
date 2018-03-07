@@ -12,6 +12,9 @@ const (
 
 	// DefaultListenerName is a default.
 	DefaultListenerName = "default"
+
+	// DefaultRecoverPanics is a default.
+	DefaultRecoverPanics = true
 )
 
 var (
@@ -19,17 +22,28 @@ var (
 	DefaultListenerWorkers = runtime.NumCPU()
 )
 
-// New returns a new agent with a given set of enabled flags.
+// New returns a new logger with a given set of enabled flags, without a writer provisioned.
 func New(flags ...Flag) *Logger {
 	return &Logger{
-		recoverPanics: true,
+		recoverPanics: DefaultRecoverPanics,
 		flags:         NewFlagSet(flags...),
 	}
 }
 
-// NewFromEnv returns a new agent with settings read from the environment.
+// NewFromConfig returns a new logger from a config.
+func NewFromConfig(cfg *Config) *Logger {
+	return &Logger{
+		recoverPanics: cfg.GetRecoverPanics(),
+		flags:         NewFlagSetFromValues(cfg.GetFlags()...),
+		hiddenFlags:   NewFlagSetFromValues(cfg.GetHiddenFlags()...),
+		writers:       cfg.GetWriters(),
+	}
+}
+
+// NewFromEnv returns a new agent with settings read from the environment, including
+// the underlying writer.
 func NewFromEnv() *Logger {
-	return New().WithFlagsFromEnv().WithWriter(NewWriterFromEnv())
+	return NewFromConfig(NewConfigFromEnv())
 }
 
 // All returns a valid agent that fires any and all events.
@@ -44,12 +58,25 @@ func None() *Logger {
 	}
 }
 
+// NewText returns a new text logger.
+func NewText() *Logger {
+	return NewFromEnv().WithWriter(NewTextWriterFromEnv())
+}
+
+// NewJSON returns a new json logger.
+func NewJSON() *Logger {
+	return NewFromEnv().WithWriter(NewJSONWriterFromEnv())
+}
+
 // Logger is a handler for various logging events with descendent handlers.
 type Logger struct {
-	writer Writer
+	writers []Writer
 
 	flagsLock sync.Mutex
 	flags     *FlagSet
+
+	hiddenFlagsLock sync.Mutex
+	hiddenFlags     *FlagSet
 
 	workersLock sync.Mutex
 	workers     map[Flag]map[string]*Worker
@@ -62,49 +89,87 @@ type Logger struct {
 	writeErrorWorker     *Worker
 }
 
-// Writer returns the inner Logger for the diagnostics agent.
+// WithLabel sets the writer label for any configured writers.
+func (l *Logger) WithLabel(label string) *Logger {
+	if len(l.writers) > 0 {
+		for _, w := range l.writers {
+			w.WithLabel(label)
+		}
+	}
+	return l
+}
+
+// Writers returns the output writers for events.
+func (l *Logger) Writers() []Writer {
+	return l.writers
+}
+
+// Writer returns the first logger writer if one has been provided.
+// It is something we've left for compatibility reasons.
 func (l *Logger) Writer() Writer {
-	return l.writer
+	if len(l.writers) > 0 {
+		return l.writers[0]
+	}
+	return nil
 }
 
 // WithWriter sets the logger writer.
 func (l *Logger) WithWriter(writer Writer) *Logger {
-	l.writer = writer
+	l.writers = append(l.writers, writer)
 	return l
 }
 
-// RecoverPanics returns if we should recover panics in logger listeners.
-func (l *Logger) RecoverPanics() bool {
+// RecoversPanics returns if we should recover panics in logger listeners.
+func (l *Logger) RecoversPanics() bool {
 	return l.recoverPanics
 }
 
-// WithRecoverPanics sets the recoverPanics field.
+// WithRecoverPanics sets the recoverPanics sets if the logger should trap panics in event handlers.
 func (l *Logger) WithRecoverPanics(value bool) *Logger {
 	l.recoverPanics = value
 	return l
 }
 
-// Flags returns the EventSet
+// Flags returns the logger flag set.
 func (l *Logger) Flags() *FlagSet {
 	return l.flags
 }
 
-// WithFlags sets the logger flags.
+// WithFlags sets the logger flag set.
 func (l *Logger) WithFlags(flags *FlagSet) *Logger {
 	l.flagsLock.Lock()
-	defer l.flagsLock.Unlock()
 	l.flags = flags
+	l.flagsLock.Unlock()
 	return l
 }
 
-// WithFlagsFromEnv adds events from the environment.
+// WithHiddenFlags sets the hidden flag set.
+// These flags mark events as to be omitted from output.
+func (l *Logger) WithHiddenFlags(flags *FlagSet) *Logger {
+	l.hiddenFlagsLock.Lock()
+	l.hiddenFlags = flags
+	l.hiddenFlagsLock.Unlock()
+	return l
+}
+
+// WithFlagsFromEnv adds flags from the environment.
 func (l *Logger) WithFlagsFromEnv() *Logger {
 	l.flagsLock.Lock()
 	defer l.flagsLock.Unlock()
+
+	l.hiddenFlagsLock.Lock()
+	defer l.hiddenFlagsLock.Unlock()
+
 	if l.flags != nil {
 		l.flags.CoalesceWith(NewFlagSetFromEnv())
 	} else {
 		l.flags = NewFlagSetFromEnv()
+	}
+
+	if l.hiddenFlags != nil {
+		l.hiddenFlags.CoalesceWith(NewHiddenFlagSetFromEnv())
+	} else {
+		l.hiddenFlags = NewHiddenFlagSetFromEnv()
 	}
 	return l
 }
@@ -154,6 +219,47 @@ func (l *Logger) IsEnabled(flag Flag) bool {
 		return false
 	}
 	return l.flags.IsEnabled(flag)
+}
+
+// Hide disallows automatic logging for each event emitted under the provided list of flags.
+func (l *Logger) Hide(flags ...Flag) {
+	l.hiddenFlagsLock.Lock()
+	defer l.hiddenFlagsLock.Unlock()
+
+	if l.hiddenFlags != nil {
+		for _, flag := range flags {
+			l.hiddenFlags.Enable(flag)
+		}
+	} else {
+		l.hiddenFlags = NewFlagSet(flags...)
+	}
+}
+
+// IsHidden asserts if a flag is hidden or not.
+func (l *Logger) IsHidden(flag Flag) bool {
+	if l.hiddenFlags == nil {
+		return false
+	}
+	return l.hiddenFlags.IsEnabled(flag)
+}
+
+// WithHidden hides a set of flags and returns logger
+func (l *Logger) WithHidden(flags ...Flag) *Logger {
+	l.Hide(flags...)
+	return l
+}
+
+// Show allows automatic logging for each event emitted under the provided list of flags.
+func (l *Logger) Show(flags ...Flag) {
+	if l.hiddenFlags == nil {
+		return
+	}
+
+	l.hiddenFlagsLock.Lock()
+	defer l.hiddenFlagsLock.Unlock()
+	for _, flag := range flags {
+		l.hiddenFlags.Disable(flag)
+	}
 }
 
 // HasListeners returns if there are registered listener for an event.
@@ -255,8 +361,21 @@ func (l *Logger) RemoveListener(flag Flag, listenerName string) {
 	}
 }
 
-// Trigger fires the currently configured event listeners.
+// Trigger fires the listeners for a given event asynchronously.
+// The invocations will be queued in a work queue and processed by a fixed worker count.
+// There are no order guarantees on when these events will be processed.
+// This call will not block on the event listeners.
 func (l *Logger) Trigger(e Event) {
+	l.trigger(true, e)
+}
+
+// SyncTrigger fires the listeners for a given event synchronously.
+// The invocations will be triggered immediately, blocking the call.
+func (l *Logger) SyncTrigger(e Event) {
+	l.trigger(false, e)
+}
+
+func (l *Logger) trigger(async bool, e Event) {
 	if l == nil {
 		return
 	}
@@ -266,62 +385,58 @@ func (l *Logger) Trigger(e Event) {
 	if l.flags == nil {
 		return
 	}
-	l.ensureInitialized()
+	if async {
+		l.ensureInitialized()
+	}
+
+	if typed, isTyped := e.(EventEnabled); isTyped && !typed.IsEnabled() {
+		return
+	}
 
 	flag := e.Flag()
-	if l.flags.IsEnabled(flag) {
+	if l.IsEnabled(flag) {
 		if l.workers != nil {
 			if workers, hasWorkers := l.workers[flag]; hasWorkers {
 				for _, worker := range workers {
-					worker.Work <- e
+					if async {
+						worker.Work <- e
+					} else {
+						worker.Listener(e)
+					}
 				}
 			}
 		}
 
-		if typed, isTyped := e.(EventWritable); isTyped && !typed.ShouldWrite() {
+		// check if the flag is globally hidden from output.
+		if l.IsHidden(flag) {
 			return
 		}
 
-		if typed, isTyped := e.(EventErrorWritable); isTyped && typed.IsError() {
-			l.writeErrorWorker.Work <- e
-		} else {
-			l.writeWorker.Work <- e
+		// check if the event controls if it should be written or not.
+		if typed, isTyped := e.(EventWritable); isTyped && !typed.IsWritable() {
+			return
 		}
-	}
 
-}
-
-// SyncTrigger fires the currently configured event listeners synchronously.
-func (l *Logger) SyncTrigger(e Event) {
-	if l == nil {
-		return
-	}
-	if e == nil {
-		return
-	}
-	if l.flags == nil {
-		return
-	}
-
-	flag := e.Flag()
-	if l.flags.IsEnabled(flag) {
-		if workers, hasWorkers := l.workers[flag]; hasWorkers {
-			for _, worker := range workers {
-				worker.Listener(e)
+		// check if the event should be handled by the error outputs
+		if typed, isTyped := e.(EventError); isTyped && typed.IsError() {
+			if async {
+				l.writeErrorWorker.Work <- e
+			} else {
+				l.WriteError(e)
+			}
+		} else {
+			if async {
+				l.writeWorker.Work <- e
+			} else {
+				l.Write(e)
 			}
 		}
-
-		if typed, isTyped := e.(EventWritable); isTyped && !typed.ShouldWrite() {
-			return
-		}
-
-		if typed, isTyped := e.(EventErrorWritable); isTyped && typed.IsError() {
-			l.WriteError(e)
-		} else {
-			l.Write(e)
-		}
 	}
 }
+
+// --------------------------------------------------------------------------------
+// Builtin Flag Handlers (infof, debugf etc.)
+// --------------------------------------------------------------------------------
 
 // Sillyf logs an incredibly verbose message to the output stream.
 func (l *Logger) Sillyf(format string, args ...interface{}) {
@@ -597,14 +712,18 @@ func (l *Logger) ensureInitialized() {
 
 // Write writes to the writer.
 func (l *Logger) Write(e Event) {
-	if l.writer != nil {
-		l.writer.Write(e)
+	if len(l.writers) > 0 {
+		for _, writer := range l.writers {
+			writer.Write(e)
+		}
 	}
 }
 
 // WriteError writes to the error writer.
 func (l *Logger) WriteError(e Event) {
-	if l.writer != nil {
-		l.writer.WriteError(e)
+	if len(l.writers) > 0 {
+		for _, writer := range l.writers {
+			writer.WriteError(e)
+		}
 	}
 }

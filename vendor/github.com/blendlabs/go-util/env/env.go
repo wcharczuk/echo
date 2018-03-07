@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	exception "github.com/blendlabs/go-exception"
 	util "github.com/blendlabs/go-util"
 )
 
@@ -18,41 +18,20 @@ var (
 )
 
 const (
-	// VarServiceEnv is a common env var name.
-	VarServiceEnv = "SERVICE_ENV"
-	// VarServiceName is a common env var name.
-	VarServiceName = "SERVICE_NAME"
-	// VarServiceSecret is a common env var name.
-	VarServiceSecret = "SERVICE_SECRET"
-	// VarPort is a common env var name.
-	VarPort = "PORT"
-	// VarSecurePort is a common env var name.
-	VarSecurePort = "SECURE_PORT"
-	// VarTLSCertPath is a common env var name.
-	VarTLSCertPath = "TLS_CERT_PATH"
-	// VarTLSKeyPath is a common env var name.
-	VarTLSKeyPath = "TLS_KEY_PATH"
-	// VarTLSCert is a common env var name.
-	VarTLSCert = "TLS_CERT"
-	// VarTLSKey is a common env var name.
-	VarTLSKey = "TLS_KEY"
-
-	// VarPGIdleConns is a common env var name.
-	VarPGIdleConns = "PG_IDLE_CONNS"
-	// VarPGMaxConns is a common env var name.
-	VarPGMaxConns = "PG_MAX_CONNS"
-
-	// ServiceEnvDev is a service environment.
-	ServiceEnvDev = "dev"
-	// ServiceEnvCI is a service environment.
-	ServiceEnvCI = "ci"
-	// ServiceEnvPreprod is a service environment.
-	ServiceEnvPreprod = "preprod"
-	// ServiceEnvBeta is a service environment.
-	ServiceEnvBeta = "beta"
-	// ServiceEnvProd is a service environment.
-	ServiceEnvProd = "prod"
+	// TagNameEnvironmentVariableName is the struct tag for what environment variable to use to populate a field.
+	TagNameEnvironmentVariableName = "env"
+	// FlagCSV is a field tag flag (say that 10 times fast).
+	FlagCSV = "csv"
+	// FlagBase64 is a field tag flag (say that 10 times fast).
+	FlagBase64 = "base64"
+	// FlagBytes is a field tag flag (say that 10 times fast).
+	FlagBytes = "bytes"
 )
+
+// Marshaler is a type that implements `ReadInto`.
+type Marshaler interface {
+	MarshalEnv(vars Vars) error
+}
 
 // Env returns the current env var set.
 func Env() Vars {
@@ -167,30 +146,150 @@ func (ev Vars) Bool(envVar string, defaults ...bool) bool {
 }
 
 // Int returns an integer value for a given key.
-func (ev Vars) Int(envVar string, defaults ...int) int {
+func (ev Vars) Int(envVar string, defaults ...int) (int, error) {
 	if value, hasValue := ev[envVar]; hasValue {
-		return util.Parse.Int(value)
+		return strconv.Atoi(value)
 	}
 	if len(defaults) > 0 {
-		return defaults[0]
+		return defaults[0], nil
 	}
-	return 0
+	return 0, nil
+}
+
+// MustInt returns an integer value for a given key and panics if it is malformed.
+func (ev Vars) MustInt(envVar string, defaults ...int) int {
+	value, err := ev.Int(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Int32 returns an integer value for a given key.
+func (ev Vars) Int32(envVar string, defaults ...int32) (int32, error) {
+	if value, hasValue := ev[envVar]; hasValue {
+		parsedValue, err := strconv.Atoi(value)
+		return int32(parsedValue), err
+	}
+	if len(defaults) > 0 {
+		return defaults[0], nil
+	}
+	return 0, nil
+}
+
+// MustInt32 returns an integer value for a given key and panics if it is malformed.
+func (ev Vars) MustInt32(envVar string, defaults ...int32) int32 {
+	value, err := ev.Int32(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
 }
 
 // Int64 returns an int64 value for a given key.
-func (ev Vars) Int64(envVar string, defaults ...int64) int64 {
+func (ev Vars) Int64(envVar string, defaults ...int64) (int64, error) {
 	if value, hasValue := ev[envVar]; hasValue {
-		return util.Parse.Int64(value)
+		return strconv.ParseInt(value, 10, 64)
 	}
 	if len(defaults) > 0 {
-		return defaults[0]
+		return defaults[0], nil
 	}
-	return 0
+	return 0, nil
+}
+
+// MustInt64 returns an int64 value for a given key and panics if it is malformed.
+func (ev Vars) MustInt64(envVar string, defaults ...int64) int64 {
+	value, err := ev.Int64(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Uint32 returns an uint32 value for a given key.
+func (ev Vars) Uint32(envVar string, defaults ...uint32) (uint32, error) {
+	if value, hasValue := ev[envVar]; hasValue {
+		parsedValue, err := strconv.ParseUint(value, 10, 32)
+		return uint32(parsedValue), err
+	}
+	if len(defaults) > 0 {
+		return defaults[0], nil
+	}
+	return 0, nil
+}
+
+// MustUint32 returns an uint32 value for a given key and panics if it is malformed.
+func (ev Vars) MustUint32(envVar string, defaults ...uint32) uint32 {
+	value, err := ev.Uint32(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Uint64 returns an uint64 value for a given key.
+func (ev Vars) Uint64(envVar string, defaults ...uint64) (uint64, error) {
+	if value, hasValue := ev[envVar]; hasValue {
+		return strconv.ParseUint(value, 10, 64)
+	}
+	if len(defaults) > 0 {
+		return defaults[0], nil
+	}
+	return 0, nil
+}
+
+// MustUint64 returns an uint64 value for a given key and panics if it is malformed.
+func (ev Vars) MustUint64(envVar string, defaults ...uint64) uint64 {
+	value, err := ev.Uint64(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Float64 returns an float64 value for a given key.
+func (ev Vars) Float64(envVar string, defaults ...float64) (float64, error) {
+	if value, hasValue := ev[envVar]; hasValue {
+		return strconv.ParseFloat(value, 64)
+	}
+	if len(defaults) > 0 {
+		return defaults[0], nil
+	}
+	return 0, nil
+}
+
+// MustFloat64 returns an float64 value for a given key and panics if it is malformed.
+func (ev Vars) MustFloat64(envVar string, defaults ...float64) float64 {
+	value, err := ev.Float64(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Duration returns a duration value for a given key.
+func (ev Vars) Duration(envVar string, defaults ...time.Duration) (time.Duration, error) {
+	if value, hasValue := ev[envVar]; hasValue {
+		return time.ParseDuration(value)
+	}
+	if len(defaults) > 0 {
+		return defaults[0], nil
+	}
+	return 0, nil
+}
+
+// MustDuration returnss a duration value for a given key and panics if malformed.
+func (ev Vars) MustDuration(envVar string, defaults ...time.Duration) time.Duration {
+	value, err := ev.Duration(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
 }
 
 // Bytes returns a []byte value for a given key.
-func (ev Vars) Bytes(key string, defaults ...[]byte) []byte {
-	if value, hasValue := ev[key]; hasValue && len(value) > 0 {
+func (ev Vars) Bytes(envVar string, defaults ...[]byte) []byte {
+	if value, hasValue := ev[envVar]; hasValue && len(value) > 0 {
 		return []byte(value)
 	}
 	if len(defaults) > 0 {
@@ -200,44 +299,72 @@ func (ev Vars) Bytes(key string, defaults ...[]byte) []byte {
 }
 
 // Base64 returns a []byte value for a given key whose value is encoded in base64.
-func (ev Vars) Base64(key string, defaults ...[]byte) []byte {
-	if value, hasValue := ev[key]; hasValue && len(value) > 0 {
-		result, _ := util.Base64.Decode(value)
-		return result
+func (ev Vars) Base64(envVar string, defaults ...[]byte) ([]byte, error) {
+	if value, hasValue := ev[envVar]; hasValue && len(value) > 0 {
+		return util.Base64.Decode(value)
 	}
 	if len(defaults) > 0 {
-		return defaults[0]
+		return defaults[0], nil
 	}
-	return nil
+	return nil, nil
 }
 
-// HasVar returns if a key is present in the set.
-func (ev Vars) HasVar(envVar string) bool {
+// MustBase64 returns a []byte value for a given key encoded with base64, and panics if malformed.
+func (ev Vars) MustBase64(envVar string, defaults ...[]byte) []byte {
+	value, err := ev.Base64(envVar, defaults...)
+	if err != nil {
+		panic(err)
+	}
+	return value
+}
+
+// Has returns if a key is present in the set.
+func (ev Vars) Has(envVar string) bool {
 	_, hasKey := ev[envVar]
 	return hasKey
 }
 
-// HasAllVars returns if all of the given vars are present in the set.
-func (ev Vars) HasAllVars(envVars ...string) bool {
+// HasAll returns if all of the given vars are present in the set.
+func (ev Vars) HasAll(envVars ...string) bool {
 	if len(envVars) == 0 {
 		return false
 	}
 	for _, envVar := range envVars {
-		if !ev.HasVar(envVar) {
+		if !ev.Has(envVar) {
 			return false
 		}
 	}
 	return true
 }
 
-// HasAnyVars returns if any of the given vars are present in the set.
-func (ev Vars) HasAnyVars(envVars ...string) bool {
+// HasAny returns if any of the given vars are present in the set.
+func (ev Vars) HasAny(envVars ...string) bool {
 	for _, envVar := range envVars {
-		if ev.HasVar(envVar) {
+		if ev.Has(envVar) {
 			return true
 		}
 	}
 	return false
+}
+
+// Require enforces that a given set of environment variables are present.
+func (ev Vars) Require(keys ...string) error {
+	for _, key := range keys {
+		if !ev.Has(key) {
+			return fmt.Errorf("the following environment variables are required: `%s`", strings.Join(keys, ","))
+		}
+	}
+	return nil
+}
+
+// Must enforces that a given set of environment variables are present and panics
+// if they're not present.
+func (ev Vars) Must(keys ...string) {
+	for _, key := range keys {
+		if !ev.Has(key) {
+			panic(fmt.Sprintf("the following environment variables are required: `%s`", strings.Join(keys, ",")))
+		}
+	}
 }
 
 // Union returns the union of the two sets, other replacing conflicts.
@@ -272,262 +399,134 @@ func (ev Vars) Raw() []string {
 	return raw
 }
 
-// ServiceEnv is a common environment variable for the services environment.
-// Common values include "dev", "ci", "sandbox", "preprod", "beta", and "prod".
-func (ev Vars) ServiceEnv(defaults ...string) string {
-	return ev.String(VarServiceEnv, defaults...)
-}
-
-// IsProduction returns if the ServiceEnv is a production environment.
-func (ev Vars) IsProduction() bool {
-	return ev.ServiceEnv() == ServiceEnvPreprod ||
-		ev.ServiceEnv() == ServiceEnvProd
-}
-
-// IsProdLike returns if the ServiceEnv is "prodlike".
-func (ev Vars) IsProdLike() bool {
-	return ev.ServiceEnv() == ServiceEnvPreprod ||
-		ev.ServiceEnv() == ServiceEnvBeta ||
-		ev.ServiceEnv() == ServiceEnvProd
-}
-
-// ServiceName is a common environment variable for the service's name.
-func (ev Vars) ServiceName(defaults ...string) string {
-	return ev.String(VarServiceName, defaults...)
-}
-
-// ServiceSecret is the main secret for the app.
-// It is typically a 32 byte / 256 bit key.
-func (ev Vars) ServiceSecret(defaults ...[]byte) []byte {
-	return ev.Base64(VarServiceSecret, defaults...)
-}
-
-// Port is a common environment variable.
-// It is what TCP port to bind to for the HTTP server.
-func (ev Vars) Port(defaults ...string) string {
-	return ev.String(VarPort, defaults...)
-}
-
-// SecurePort is a common environment variable.
-// It is what TCP port to bind to for the HTTPS server.
-func (ev Vars) SecurePort(defaults ...string) string {
-	return ev.String(VarSecurePort, defaults...)
-}
-
-// TLSCertFilepath is a common environment variable for the (whole) TLS cert to use with https.
-func (ev Vars) TLSCertFilepath(defaults ...string) string {
-	return ev.String(VarTLSCertPath, defaults...)
-}
-
-// TLSKeyFilepath is a common environment variable for the (whole) TLS key to use with https.
-func (ev Vars) TLSKeyFilepath(defaults ...string) string {
-	return ev.String(VarTLSKeyPath, defaults...)
-}
-
-// TLSCert is a common environment variable for the (whole) TLS cert to use with https.
-func (ev Vars) TLSCert(defaults ...[]byte) []byte {
-	return ev.Bytes(VarTLSCert, defaults...)
-}
-
-// TLSKey is a common environment variable for the (whole) TLS key to use with https.
-func (ev Vars) TLSKey(defaults ...[]byte) []byte {
-	return ev.Bytes(VarTLSKey, defaults...)
-}
-
-// RequireVars enforces that a given set of environment variables are present.
-func (ev Vars) RequireVars(keys ...string) error {
-	for _, key := range keys {
-		if !ev.HasVar(key) {
-			return fmt.Errorf("the following environment variables are required: `%s`", strings.Join(keys, ","))
-		}
-	}
-	return nil
-}
-
-// MustVars enforces that a given set of environment variables are present and panics
-// if they're not present.
-func (ev Vars) MustVars(keys ...string) {
-	for _, key := range keys {
-		if !ev.HasVar(key) {
-			panic(fmt.Sprintf("the following environment variables are required: `%s`", strings.Join(keys, ",")))
-		}
-	}
-}
-
-const (
-	// TagNameEnvironmentVariableName is the struct tag for what environment variable to use to populate a field.
-	TagNameEnvironmentVariableName = "env"
-	// TagNameEnvironmentVariableDefault is the struct tag for what to use if the environment variable is empty.
-	TagNameEnvironmentVariableDefault = "env_default"
-)
-
 // ReadInto reads the environment into tagged fields on the `obj`.
 func (ev Vars) ReadInto(obj interface{}) error {
-	objMeta := reflectType(obj)
+	// check if the type implements marshaler.
+	if typed, isTyped := obj.(Marshaler); isTyped {
+		return typed.MarshalEnv(ev)
+	}
+
+	objMeta := util.Reflection.ReflectType(obj)
+	objValue := util.Reflection.ReflectValue(obj)
+
+	typeBool := reflect.TypeOf(false)
+	typeDuration := reflect.TypeOf(time.Nanosecond)
+	typeFloat32 := reflect.TypeOf(float32(1.0))
+	typeFloat64 := reflect.TypeOf(float64(1.0))
+	typeInt := reflect.TypeOf(1)
+	typeInt8 := reflect.TypeOf(int8(1))
+	typeInt16 := reflect.TypeOf(int16(1))
+	typeInt32 := reflect.TypeOf(int32(1))
+	typeInt64 := reflect.TypeOf(int64(1))
+	typeUint := reflect.TypeOf(uint(1))
+	typeUint8 := reflect.TypeOf(uint8(1))
+	typeUint16 := reflect.TypeOf(uint16(1))
+	typeUint32 := reflect.TypeOf(uint32(1))
+	typeUint64 := reflect.TypeOf(uint64(1))
+	typeUintptr := reflect.TypeOf(uintptr(1))
 
 	var field reflect.StructField
 	var tag string
-	var envValue string
-	var defaultValue string
+	var envValue interface{}
 	var err error
+	var pieces []string
+	var envVar string
 
 	for x := 0; x < objMeta.NumField(); x++ {
 		field = objMeta.Field(x)
-		tag = field.Tag.Get(TagNameEnvironmentVariableName)
 
+		// Treat structs as nested values.
+		if field.Type.Kind() == reflect.Struct {
+			if err = ev.ReadInto(objValue.Field(x).Addr().Interface()); err != nil {
+				return err
+			}
+			continue
+		}
+
+		tag = field.Tag.Get(TagNameEnvironmentVariableName)
 		if len(tag) > 0 {
-			envValue = ev.String(tag)
-			if len(envValue) > 0 {
-				err = setValueByName(obj, field.Name, envValue)
+			var csv bool
+			var bytes bool
+			var base64 bool
+
+			pieces = strings.Split(tag, ",")
+			envVar = pieces[0]
+			if len(pieces) > 1 {
+				for y := 1; y < len(pieces); y++ {
+					if pieces[y] == FlagCSV {
+						csv = true
+					} else if pieces[y] == FlagBase64 {
+						base64 = true
+					} else if pieces[y] == FlagBytes {
+						bytes = true
+					}
+				}
+			}
+
+			if csv {
+				envValue = ev.CSV(envVar)
+			} else if base64 {
+				envValue, err = ev.Base64(envVar)
 				if err != nil {
 					return err
 				}
+			} else if bytes {
+				envValue = ev.Bytes(envVar)
 			} else {
-				defaultValue = field.Tag.Get(TagNameEnvironmentVariableDefault)
-				if len(defaultValue) > 0 {
-					err = setValueByName(obj, field.Name, defaultValue)
+				// infer the type.
+				fieldType := util.Reflection.FollowType(field.Type)
+				switch fieldType {
+				case typeBool:
+					if ev.Has(envVar) {
+						envValue = ev.Bool(envVar)
+					} else {
+						continue
+					}
+				case typeFloat32, typeFloat64:
+					envValue, err = ev.Float64(envVar)
 					if err != nil {
 						return err
 					}
+				case typeInt, typeInt8, typeInt16:
+					envValue, err = ev.Int(envVar)
+					if err != nil {
+						return err
+					}
+				case typeInt32:
+					envValue, err = ev.Int32(envVar)
+					if err != nil {
+						return err
+					}
+				case typeInt64:
+					envValue, err = ev.Int64(envVar)
+					if err != nil {
+						return err
+					}
+				case typeUint32:
+					envValue, err = ev.Uint32(envVar)
+					if err != nil {
+						return err
+					}
+				case typeUint, typeUint8, typeUint16, typeUint64, typeUintptr:
+					envValue, err = ev.Uint64(envVar)
+					if err != nil {
+						return err
+					}
+				case typeDuration:
+					envValue, err = ev.Duration(envVar)
+					if err != nil {
+						return err
+					}
+				default:
+					envValue = ev.String(envVar)
 				}
+			}
+
+			err = util.Reflection.SetValueByName(obj, field.Name, envValue)
+			if err != nil {
+				return err
 			}
 		}
 	}
 	return nil
-}
-
-// ReflectType returns the integral type for an object.
-func reflectType(obj interface{}) reflect.Type {
-	t := reflect.TypeOf(obj)
-	for t.Kind() == reflect.Ptr || t.Kind() == reflect.Interface {
-		t = t.Elem()
-	}
-
-	return t
-}
-
-// ReflectValue returns the integral reflect.Value for an object.
-func reflectValue(obj interface{}) reflect.Value {
-	v := reflect.ValueOf(obj)
-	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
-		v = v.Elem()
-	}
-	return v
-}
-
-// SetValueByName sets a value on an object by its field name.
-func setValueByName(target interface{}, fieldName string, fieldValue interface{}) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = exception.Newf("Error setting field: %v", r)
-		}
-	}()
-	typeCheck := reflect.TypeOf(target)
-	if typeCheck.Kind() != reflect.Ptr {
-		return exception.New("Cannot modify non-pointer target")
-	}
-
-	targetValue := reflectValue(target)
-	targetType := reflectType(target)
-	relevantField, hasField := targetType.FieldByName(fieldName)
-
-	if !hasField {
-		return exception.Newf("Field not found  %s.%s", targetType.Name(), fieldName)
-	}
-
-	field := targetValue.FieldByName(relevantField.Name)
-	fieldType := field.Type()
-	if !field.CanSet() {
-		return exception.Newf("Cannot set field %s", fieldName)
-	}
-
-	valueReflected := reflectValue(fieldValue)
-	if !valueReflected.IsValid() {
-		return exception.New("Reflected value is invalid, cannot continue.")
-	}
-
-	if valueReflected.Type().AssignableTo(fieldType) {
-		field.Set(valueReflected)
-		return nil
-	}
-
-	if field.Kind() == reflect.Ptr {
-		if valueReflected.CanAddr() {
-			convertedValue := valueReflected.Convert(fieldType.Elem())
-			if convertedValue.CanAddr() {
-				field.Set(convertedValue.Addr())
-				return nil
-			}
-		}
-		return exception.New("Cannot take address of value for assignment to field pointer")
-	}
-
-	if fieldAsString, isString := valueReflected.Interface().(string); isString {
-		var parsedValue reflect.Value
-		handledType := true
-		switch fieldType.Kind() {
-		case reflect.Int:
-			intValue, err := strconv.Atoi(fieldAsString)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(intValue)
-		case reflect.Int64:
-			int64Value, err := strconv.ParseInt(fieldAsString, 10, 64)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(int64Value)
-		case reflect.Uint16:
-			intValue, err := strconv.Atoi(fieldAsString)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(uint16(intValue))
-		case reflect.Uint: //a.k.a. uint32
-			intValue, err := strconv.Atoi(fieldAsString)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(uint(intValue))
-		case reflect.Uint32:
-			intValue, err := strconv.Atoi(fieldAsString)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(uint32(intValue))
-		case reflect.Uint64:
-			intValue, err := strconv.Atoi(fieldAsString)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(uint64(intValue))
-		case reflect.Float32:
-			floatValue, err := strconv.ParseFloat(fieldAsString, 32)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(floatValue)
-		case reflect.Float64:
-			floatValue, err := strconv.ParseFloat(fieldAsString, 64)
-			if err != nil {
-				return exception.Wrap(err)
-			}
-			parsedValue = reflect.ValueOf(floatValue)
-		default:
-			handledType = false
-		}
-		if handledType {
-			field.Set(parsedValue)
-			return nil
-		}
-	}
-
-	convertedValue := valueReflected.Convert(fieldType)
-	if convertedValue.IsValid() && convertedValue.Type().AssignableTo(fieldType) {
-		field.Set(convertedValue)
-		return nil
-	}
-
-	return exception.New("Couldnt set field %s.%s", targetType.Name(), fieldName)
 }

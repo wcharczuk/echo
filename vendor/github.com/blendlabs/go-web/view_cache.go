@@ -18,6 +18,25 @@ func NewViewCache() *ViewCache {
 	}
 }
 
+// NewViewCacheFromConfig returns a new view cache from a config.
+func NewViewCacheFromConfig(cfg *ViewCacheConfig) (*ViewCache, error) {
+	var t *template.Template
+	var err error
+	if len(cfg.GetPaths()) > 0 {
+		t, err = template.New("").ParseFiles(cfg.GetPaths()...)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		t = template.New("")
+	}
+	return &ViewCache{
+		viewFuncMap: viewUtils(),
+		viewCache:   t,
+		cached:      cfg.GetCached(),
+	}, nil
+}
+
 // NewViewCacheWithTemplates creates a new view cache wrapping the templates.
 func NewViewCacheWithTemplates(templates *template.Template) *ViewCache {
 	return &ViewCache{

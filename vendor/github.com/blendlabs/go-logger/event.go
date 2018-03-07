@@ -10,12 +10,17 @@ type Event interface {
 	Timestamp() time.Time
 }
 
-// EventErrorWritable determines if we should write the event to the error stream.
-type EventErrorWritable interface {
-	IsError() bool
+// EventEnabled determines if we should allow an event to be triggered or not.
+type EventEnabled interface {
+	IsEnabled() bool
 }
 
 // EventWritable lets us disable implicit writing for some events.
 type EventWritable interface {
-	ShouldWrite() bool
+	IsWritable() bool
+}
+
+// EventError determines if we should write the event to the error stream.
+type EventError interface {
+	IsError() bool
 }

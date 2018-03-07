@@ -18,6 +18,9 @@ const (
 	Kilobyte = 1 << 10
 )
 
+// Any is a helper alias to interface{}
+type Any = interface{}
+
 // GetIP gets the origin/client ip for a request.
 // X-FORWARDED-FOR is checked. If multiple IPs are included the first one is returned
 // X-REAL-IP is checked. If multiple IPs are included the first one is returned
@@ -98,13 +101,13 @@ func ParseFileSize(fileSizeValue string) (int64, error) {
 }
 
 // FormatFileSize returns a string representation of a file size in bytes.
-func FormatFileSize(sizeBytes int) string {
+func FormatFileSize(sizeBytes int64) string {
 	if sizeBytes >= 1<<30 {
-		return strconv.Itoa(sizeBytes/Gigabyte) + "gb"
+		return strconv.FormatInt(sizeBytes/Gigabyte, 10) + "gb"
 	} else if sizeBytes >= 1<<20 {
-		return strconv.Itoa(sizeBytes/Megabyte) + "mb"
+		return strconv.FormatInt(sizeBytes/Megabyte, 10) + "mb"
 	} else if sizeBytes >= 1<<10 {
-		return strconv.Itoa(sizeBytes/Kilobyte) + "kb"
+		return strconv.FormatInt(sizeBytes/Kilobyte, 10) + "kb"
 	}
-	return strconv.Itoa(sizeBytes)
+	return strconv.FormatInt(sizeBytes, 10)
 }

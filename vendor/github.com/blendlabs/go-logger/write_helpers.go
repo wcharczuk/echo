@@ -17,7 +17,7 @@ func TextWriteRequestStart(tf TextFormatter, buf *bytes.Buffer, req *http.Reques
 }
 
 // TextWriteRequest is a helper method to write request complete events to a writer.
-func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode, contentLengthBytes int, elapsed time.Duration) {
+func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode int, contentLength int64, contentType string, elapsed time.Duration) {
 	buf.WriteString(GetIP(req))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(tf.Colorize(req.Method, ColorBlue))
@@ -28,7 +28,9 @@ func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, st
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(elapsed.String())
 	buf.WriteRune(RuneSpace)
-	buf.WriteString(FormatFileSize(contentLengthBytes))
+	buf.WriteString(contentType)
+	buf.WriteRune(RuneSpace)
+	buf.WriteString(FormatFileSize(contentLength))
 }
 
 // JSONWriteRequestStart marshals a request start as json.
@@ -42,14 +44,16 @@ func JSONWriteRequestStart(req *http.Request) JSONObj {
 }
 
 // JSONWriteRequest marshals a request as json.
-func JSONWriteRequest(req *http.Request, statusCode, contentLength int, elapsed time.Duration) JSONObj {
+func JSONWriteRequest(req *http.Request, statusCode int, contentLength int64, contentType, contentEncoding string, elapsed time.Duration) JSONObj {
 	return JSONObj{
-		"ip":             GetIP(req),
-		"verb":           req.Method,
-		"path":           req.URL.Path,
-		"host":           req.Host,
-		"contentLength":  contentLength,
-		"statusCode":     statusCode,
-		JSONFieldElapsed: Milliseconds(elapsed),
+		"ip":              GetIP(req),
+		"verb":            req.Method,
+		"path":            req.URL.Path,
+		"host":            req.Host,
+		"contentLength":   contentLength,
+		"contentType":     contentType,
+		"contentEncoding": contentEncoding,
+		"statusCode":      statusCode,
+		JSONFieldElapsed:  Milliseconds(elapsed),
 	}
 }

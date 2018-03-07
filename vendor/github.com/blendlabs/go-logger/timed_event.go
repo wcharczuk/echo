@@ -7,8 +7,8 @@ import (
 )
 
 // Timedf returns a timed message event.
-func Timedf(flag Flag, elapsed time.Duration, format string, args ...interface{}) TimedEvent {
-	return TimedEvent{
+func Timedf(flag Flag, elapsed time.Duration, format string, args ...Any) *TimedEvent {
+	return &TimedEvent{
 		flag:    flag,
 		ts:      time.Now().UTC(),
 		message: fmt.Sprintf(format, args...),
@@ -33,19 +33,43 @@ type TimedEvent struct {
 	elapsed time.Duration
 }
 
-// Flag returns the logger flag.
+// WithFlag sets the timed message flag.
+func (te *TimedEvent) WithFlag(flag Flag) *TimedEvent {
+	te.flag = flag
+	return te
+}
+
+// Flag returns the timed message flag.
 func (te TimedEvent) Flag() Flag {
 	return te.flag
 }
 
-// Timestamp returns the event timestamp.
+// WithTimestamp sets the message timestamp.
+func (te *TimedEvent) WithTimestamp(ts time.Time) *TimedEvent {
+	te.ts = ts
+	return te
+}
+
+// Timestamp returns the timed message timestamp.
 func (te TimedEvent) Timestamp() time.Time {
 	return te.ts
+}
+
+// WithMessage sets the message.
+func (te *TimedEvent) WithMessage(message string) *TimedEvent {
+	te.message = message
+	return te
 }
 
 // Message returns the string message.
 func (te TimedEvent) Message() string {
 	return te.message
+}
+
+// WithElapsed sets the elapsed time.
+func (te *TimedEvent) WithElapsed(elapsed time.Duration) *TimedEvent {
+	te.elapsed = elapsed
+	return te
 }
 
 // Elapsed returns the elapsed time.
