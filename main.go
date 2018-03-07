@@ -6,6 +6,7 @@ import (
 	"time"
 
 	logs "git.blendlabs.com/blend/logs/client"
+	exception "github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
 	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
@@ -29,6 +30,9 @@ func main() {
 	})
 	app.GET("/env", func(r *web.Ctx) web.Result {
 		return r.JSON().Result(env.Env().Vars())
+	})
+	app.GET("/error", func(r *web.Ctx) web.Result {
+		return r.JSON().InternalError(exception.Newf("This is only a test").WithMessagef("this is a message").WithInner(exception.Newf("inner exception")))
 	})
 	app.GET("/proxy/*filepath", func(r *web.Ctx) web.Result {
 		return r.JSON().Result("OK!")
