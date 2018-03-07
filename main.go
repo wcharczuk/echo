@@ -83,7 +83,12 @@ func main() {
 		agent.SyncFatalExit(err)
 	}
 	agent.Listen(logger.WebRequest, "log-collector", logs.CreateLoggerListenerHTTPRequest(logsClient))
+	agent.Listen(logger.Silly, "log-collector", logs.CreateLoggerListenerInfo(logsClient))
 	agent.Listen(logger.Info, "log-collector", logs.CreateLoggerListenerInfo(logsClient))
+	agent.Listen(logger.Debug, "log-collector", logs.CreateLoggerListenerInfo(logsClient))
+	agent.Listen(logger.Warning, "log-collector", logs.CreateLoggerListenerError(logsClient))
+	agent.Listen(logger.Error, "log-collector", logs.CreateLoggerListenerError(logsClient))
+	agent.Listen(logger.Fatal, "log-collector", logs.CreateLoggerListenerError(logsClient))
 
 	agent.SyncFatalExit(app.Start())
 }
