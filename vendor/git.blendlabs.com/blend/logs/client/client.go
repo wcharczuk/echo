@@ -6,6 +6,9 @@ import (
 	"strings"
 	"time"
 
+	logger "github.com/blendlabs/go-logger"
+	"github.com/blendlabs/go-util/collections"
+
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
 	exception "github.com/blendlabs/go-exception"
@@ -48,8 +51,14 @@ func New(cfg *Config) (*Client, error) {
 		return nil, exception.Wrap(err)
 	}
 
+	var afb *collections.AutoflushBuffer
+	if cfg.GetBuffered() {
+		afb = collections.NewAutoflushBuffer(cfg.GetBufferMaxLength(), cfg.GetBufferFlushInterval())
+	}
+
 	return &Client{
 		conn:               conn,
+		flushBuffer:        afb,
 		defaultLabels:      map[string]string{},
 		defaultAnnotations: map[string]string{},
 		grpcSender:         collectorv1.NewCollectorClient(conn),
@@ -58,10 +67,29 @@ func New(cfg *Config) (*Client, error) {
 
 // Client is a wrapping client for the collector endpoint.
 type Client struct {
+	log                *logger.Logger
 	conn               *grpc.ClientConn
+	flushBuffer        *collections.AutoflushBuffer
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
 	grpcSender         collectorv1.CollectorClient
+}
+
+// WithLogger sets the logger.
+func (c *Client) WithLogger(log *logger.Logger) *Client {
+	c.log = log
+	return c
+}
+
+// Logger returns the logger.
+func (c *Client) Logger() *logger.Logger {
+	return c.log
+}
+
+// WithBuffer sets the client to use an internal autoflush buffer.
+func (c *Client) WithBuffer(maxLen int, interval time.Duration) *Client {
+	c.flushBuffer = collections.NewAutoflushBuffer(maxLen, interval).WithFlushHandler(c.flush).WithFlushOnAbort(true)
+	return c
 }
 
 // WithDefaultLabel sets a default label to inject into collected messages.
@@ -84,8 +112,28 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// Push sends a batch of messages.
-func (c *Client) Push(ctx context.Context, messages []logv1.Message) (rs *collectorv1.ReceiveSummary, err error) {
+// Send sends a message.
+func (c *Client) Send(ctx context.Context, message logv1.Message) error {
+	if c.flushBuffer != nil {
+		c.flushBuffer.Add(message)
+		return nil
+	}
+	return c.send(ctx, []logv1.Message{message})
+}
+
+// SendMany sends a group of messages.
+func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
+	if c.flushBuffer != nil {
+		for _, msg := range messages {
+			c.flushBuffer.Add(msg)
+		}
+		return nil
+	}
+	return c.send(ctx, messages)
+}
+
+// send sends a batch of messages.
+func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error) {
 	stream, openStreamErr := c.grpcSender.Push(ctx)
 	if openStreamErr != nil {
 		err = exception.Wrap(openStreamErr)
@@ -102,13 +150,23 @@ func (c *Client) Push(ctx context.Context, messages []logv1.Message) (rs *collec
 		}
 	}
 
-	summary, closeErr := stream.CloseAndRecv()
+	_, closeErr := stream.CloseAndRecv()
 	if closeErr != nil {
 		err = exception.Wrap(closeErr)
 		return
 	}
-	rs = summary
 	return
+}
+
+func (c *Client) flush(objs []interface{}) {
+	typed := make([]logv1.Message, len(objs))
+	for x := 0; x < len(objs); x++ {
+		typed[x] = objs[x].(logv1.Message)
+	}
+	err := c.send(context.TODO(), typed)
+	if err != nil && c.log != nil {
+		c.log.Error(err)
+	}
 }
 
 func (c *Client) injectDefaultLabels(msg *logv1.Message) {
