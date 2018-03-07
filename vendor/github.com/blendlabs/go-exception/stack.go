@@ -109,7 +109,7 @@ func (st StackTrace) Format(s fmt.State, verb rune) {
 func (st StackTrace) AsStringSlice() []string {
 	res := make([]string, len(st))
 	for i, frame := range st {
-		res[i] = fmt.Sprintf("%v", frame)
+		res[i] = fmt.Sprintf("%+v", frame)
 	}
 	return res
 }
