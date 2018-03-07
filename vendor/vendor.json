@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "6Yw+hm7s6uhHUI5M4bfiQsQgUnQ=",
+			"checksumSHA1": "sAf0cXniRuVowf8utg4FZNtqLEE=",
 			"path": "git.blendlabs.com/blend/logs/client",
-			"revision": "6e60b4bc5dba914421f4778bb5eee19463e895ee",
-			"revisionTime": "2018-03-07T00:00:38Z"
+			"revision": "649140d38370607c64f76b4e18dde177fdb2c930",
+			"revisionTime": "2018-03-07T00:19:15Z"
 		},
 		{
 			"checksumSHA1": "FJnpUm8lD/Y/k0CU7gzT7TbMGEg=",

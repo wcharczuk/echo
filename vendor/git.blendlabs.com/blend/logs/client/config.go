@@ -7,7 +7,7 @@ import (
 
 const (
 	// DefaultAddr is the default client addr.
-	DefaultAddr = "unix://var/run/log-collector.sock"
+	DefaultAddr = "unix:////var/run/log-collector/collector.sock"
 )
 
 // NewConfigFromEnv returns a new config from the environment.
