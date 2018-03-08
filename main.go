@@ -90,7 +90,7 @@ func main() {
 			agent.SyncFatalExit(err)
 		}
 		defer logsClient.Close()
-		logsClient.WithLogger(agent)
+		logsClient.WithLogger(logger.All().WithLabel("log-collector"))
 
 		agent.Infof("Using log collector: %s", logsCfg.GetAddr())
 		logsClient.WithDefaultLabel("service", "echo-private")
