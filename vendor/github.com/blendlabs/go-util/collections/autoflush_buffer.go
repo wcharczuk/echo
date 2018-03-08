@@ -106,6 +106,19 @@ func (ab *AutoflushBuffer) Add(obj Any) {
 	}
 }
 
+// AddMany adds many objects to the buffer at once.
+func (ab *AutoflushBuffer) AddMany(objs ...Any) {
+	ab.contentsLock.Lock()
+	defer ab.contentsLock.Unlock()
+
+	for _, obj := range objs {
+		ab.contents.Enqueue(obj)
+		if ab.contents.Len() >= ab.maxLen {
+			ab.flushUnsafeAsync()
+		}
+	}
+}
+
 // Flush clears the buffer, if a handler is provided it is passed the contents of the buffer.
 // This call is synchronous, in that it will call the flush handler on the same goroutine.
 func (ab *AutoflushBuffer) Flush() {

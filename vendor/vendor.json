@@ -3,27 +3,27 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "T4MwRm8atLghV6ov9iqisS18Q7s=",
+			"checksumSHA1": "uEueakEvXhi8HlXyOTN/clYVCG8=",
 			"path": "git.blendlabs.com/blend/logs/client",
-			"revision": "590e959a102f9db7a04efec1ab593de451c01acd",
+			"revision": "df7321f88bfcd2650733834b6dd85afece05c714",
 			"revisionTime": "2018-03-07T23:48:46Z"
 		},
 		{
-			"checksumSHA1": "LGamiJWUFiTx+6UWJ/QxCq5WTj8=",
+			"checksumSHA1": "WoV6egvdgiqY5NjlI7EdDj/fChg=",
 			"path": "git.blendlabs.com/blend/logs/pkg/collector",
-			"revision": "590e959a102f9db7a04efec1ab593de451c01acd",
+			"revision": "df7321f88bfcd2650733834b6dd85afece05c714",
 			"revisionTime": "2018-03-07T23:48:46Z"
 		},
 		{
 			"checksumSHA1": "0xVmTfUPMgX5O7F45hCqMz6qiio=",
 			"path": "git.blendlabs.com/blend/logs/pkg/config",
-			"revision": "590e959a102f9db7a04efec1ab593de451c01acd",
+			"revision": "df7321f88bfcd2650733834b6dd85afece05c714",
 			"revisionTime": "2018-03-07T23:48:46Z"
 		},
 		{
 			"checksumSHA1": "FrFg8nqTt4UP2Yhrzo2v4OfR2x4=",
 			"path": "git.blendlabs.com/blend/logs/pkg/protoutil",
-			"revision": "590e959a102f9db7a04efec1ab593de451c01acd",
+			"revision": "df7321f88bfcd2650733834b6dd85afece05c714",
 			"revisionTime": "2018-03-07T23:48:46Z"
 		},
 		{
@@ -66,10 +66,10 @@
 			"revisionTime": "2018-03-05T20:00:42Z"
 		},
 		{
-			"checksumSHA1": "3hCIlhmW3+wdKBHyfRtKPwGviyI=",
+			"checksumSHA1": "BgTKbsjCrynQmo7ak4uJdrA+prw=",
 			"path": "github.com/blendlabs/go-util/collections",
-			"revision": "38f855f317229a666c32d0aa7c4cf4d7c2bbe679",
-			"revisionTime": "2018-03-05T20:00:42Z"
+			"revision": "0b489fa76ad2e34354bdbc679775366e9c754442",
+			"revisionTime": "2018-03-08T00:10:52Z"
 		},
 		{
 			"checksumSHA1": "CgljeyBG1biYIqnoSg0idrNr/1A=",

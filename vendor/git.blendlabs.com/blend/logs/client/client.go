@@ -7,7 +7,6 @@ import (
 	"time"
 
 	logger "github.com/blendlabs/go-logger"
-	"github.com/blendlabs/go-util/collections"
 
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
@@ -51,15 +50,8 @@ func New(cfg *Config) (*Client, error) {
 		return nil, exception.Wrap(err)
 	}
 
-	var afb *collections.AutoflushBuffer
-	if cfg.GetBuffered() {
-		afb = collections.NewAutoflushBuffer(cfg.GetBufferMaxLength(), cfg.GetBufferFlushInterval())
-		afb.Start()
-	}
-
 	return &Client{
 		conn:               conn,
-		flushBuffer:        afb,
 		defaultLabels:      map[string]string{},
 		defaultAnnotations: map[string]string{},
 		grpcSender:         collectorv1.NewCollectorClient(conn),
@@ -70,28 +62,13 @@ func New(cfg *Config) (*Client, error) {
 type Client struct {
 	log                *logger.Logger
 	conn               *grpc.ClientConn
-	flushBuffer        *collections.AutoflushBuffer
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
 	grpcSender         collectorv1.CollectorClient
 }
 
-// WithBuffer sets the client to use an internal autoflush buffer.
-func (c *Client) WithBuffer(maxLen int, interval time.Duration) *Client {
-	c.flushBuffer = collections.NewAutoflushBuffer(maxLen, interval).WithFlushHandler(c.flush).WithFlushOnAbort(true)
-	return c
-}
-
-// Buffer returns the internal autoflush buffer.
-func (c *Client) Buffer() *collections.AutoflushBuffer {
-	return c.flushBuffer
-}
-
 // Close closes the client.
 func (c *Client) Close() error {
-	if c.flushBuffer != nil {
-		c.flushBuffer.Stop()
-	}
 	if c.conn != nil {
 		return c.conn.Close()
 	}
@@ -121,23 +98,19 @@ func (c *Client) WithDefaultAnnotation(key, value string) *Client {
 	return c
 }
 
+func (c *Client) debugf(format string, args ...interface{}) {
+	if c.log != nil {
+		c.log.Debugf(format, args...)
+	}
+}
+
 // Send sends a message.
 func (c *Client) Send(ctx context.Context, message logv1.Message) error {
-	if c.flushBuffer != nil {
-		c.flushBuffer.Add(message)
-		return nil
-	}
 	return c.send(ctx, []logv1.Message{message})
 }
 
 // SendMany sends a group of messages.
 func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
-	if c.flushBuffer != nil {
-		for _, msg := range messages {
-			c.flushBuffer.Add(msg)
-		}
-		return nil
-	}
 	return c.send(ctx, messages)
 }
 
@@ -171,12 +144,11 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 	return
 }
 
-func (c *Client) flush(objs []interface{}) {
+// Flush implements collection.AutoflushBuffer's flush handler interface.
+// When in doubt, just use SendMany.
+func (c *Client) Flush(objs []interface{}) {
 	if len(objs) == 0 {
 		return
-	}
-	if c.log != nil {
-		c.log.Debugf("log-client flushing %d messages", len(objs))
 	}
 	typed := make([]logv1.Message, len(objs))
 	for x := 0; x < len(objs); x++ {

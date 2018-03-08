@@ -108,12 +108,16 @@ func (s *Server) infof(format string, args ...interface{}) {
 }
 
 // Push processes messages.
-func (s *Server) Push(stream collectorv1.Collector_PushServer) error {
+func (s *Server) Push(stream collectorv1.Collector_PushServer) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = s.err(exception.New("Push recovered from panic").WithMessagef("panic: %v", r))
+		}
+	}()
+
 	var processed int
 	start := time.Now()
-
 	stats := map[logv1.MessageType]int{}
-
 	increment := func(mt logv1.MessageType) {
 		if value, hasValue := stats[mt]; hasValue {
 			stats[mt] = value + 1
@@ -122,7 +126,6 @@ func (s *Server) Push(stream collectorv1.Collector_PushServer) error {
 		}
 	}
 
-	var err error
 	var msg *logv1.Message
 	for {
 		msg, err = stream.Recv()
@@ -147,7 +150,6 @@ func (s *Server) Push(stream collectorv1.Collector_PushServer) error {
 
 		increment(msg.Type)
 
-		// add required fields
 		msg.Meta.Uid = uuid.V4().String()
 		if protoutil.UnmarshalTimestamp(msg.Meta.Timestamp).IsZero() {
 			msg.Meta.Timestamp = protoutil.MarshalTimestamp(time.Now().UTC())
