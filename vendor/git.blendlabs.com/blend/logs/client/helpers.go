@@ -11,9 +11,9 @@ import (
 	logger "github.com/blendlabs/go-logger"
 )
 
-// HasUnixSocket returns if the unix socket is present for a given config.
-func HasUnixSocket(cfg *Config) bool {
-	socketPath := cfg.GetUnixSocketPath()
+// HasCollectorUnixSocket returns if the unix socket is present for a given config.
+func HasCollectorUnixSocket(cfg *Config) bool {
+	socketPath := cfg.GetCollectorUnixSocketPath()
 	if len(socketPath) == 0 {
 		return false
 	}

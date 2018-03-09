@@ -21,29 +21,33 @@ func NewConfigFromEnv() *Config {
 
 // Config is the client config.
 type Config struct {
-	Addr string `json:"addr" yaml:"addr" env:"LOG_CLIENT_ADDR"`
+	CollectorAddr       string `json:"collectorAddr" yaml:"collectorAddr" env:"LOG_CLIENT_ADDR"`
+	CollectorServerName string `json:"collectorServerName" yaml:"collectorServerName" env:"LOG_CLIENT_SERVER_NAME"`
+	UseTLS              *bool  `json:"useTLS" yaml:"useTLS" env:"LOG_CLIENT_USE_TLS"`
+	CAFile              string `json:"caFile" yaml:"caFile" env:"LOG_CLIENT_TLS_CA_FILE"`
 
-	ServerName string `json:"serverName" yaml:"serverName" env:"LOG_CLIENT_SERVER_NAME"`
-	UseTLS     *bool  `json:"useTLS" yaml:"useTLS" env:"LOG_CLIENT_USE_TLS"`
-	CAFile     string `json:"caFile" yaml:"caFile" env:"LOG_CLIENT_TLS_CA_FILE"`
+	ServiceName string `json:"serviceName" yaml:"serviceName" env:"SERVICE_NAME"`
+	Hostname    string `json:"hostname" yaml:"hostname" env:"HOSTNAME"`
+
+	DefaultLabels map[string]string `json:"defaultLabels" yaml:"defaultLabels"`
 }
 
-// GetUnixSocketPath gets the unix socket path.
-func (c Config) GetUnixSocketPath() string {
-	if strings.HasPrefix(c.GetAddr(), "unix://") {
-		return strings.TrimPrefix(c.GetAddr(), "unix://")
+// GetCollectorUnixSocketPath gets the unix socket path.
+func (c Config) GetCollectorUnixSocketPath() string {
+	if strings.HasPrefix(c.GetCollectorAddr(), "unix://") {
+		return strings.TrimPrefix(c.GetCollectorAddr(), "unix://")
 	}
 	return ""
 }
 
-// GetAddr gets an addr or a default.
-func (c Config) GetAddr(inherited ...string) string {
-	return util.Coalesce.String(c.Addr, DefaultAddr, inherited...)
+// GetCollectorAddr gets an addr or a default.
+func (c Config) GetCollectorAddr(inherited ...string) string {
+	return util.Coalesce.String(c.CollectorAddr, DefaultAddr, inherited...)
 }
 
-// GetServerName gets an addr or a default.
-func (c Config) GetServerName(inherited ...string) string {
-	return util.Coalesce.String(c.ServerName, DefaultAddr, inherited...)
+// GetCollectorServerName gets an addr or a default.
+func (c Config) GetCollectorServerName(inherited ...string) string {
+	return util.Coalesce.String(c.CollectorServerName, DefaultAddr, inherited...)
 }
 
 // GetUseTLS sets the client to use tls.
@@ -54,4 +58,29 @@ func (c Config) GetUseTLS(inherited ...bool) bool {
 // GetCAFile gets a property or a default.
 func (c Config) GetCAFile(inherited ...string) string {
 	return util.Coalesce.String(c.CAFile, "", inherited...)
+}
+
+// GetServiceName gets a property or default.
+func (c Config) GetServiceName(inherited ...string) string {
+	return util.Coalesce.String(c.ServiceName, "", inherited...)
+}
+
+// GetHostname gets a property or default.
+func (c Config) GetHostname(inherited ...string) string {
+	return util.Coalesce.String(c.Hostname, "", inherited...)
+}
+
+// GetDefaultLabels returns the default labels set.
+func (c Config) GetDefaultLabels() map[string]string {
+	output := map[string]string{}
+	for key, value := range c.DefaultLabels {
+		output[key] = value
+	}
+	if len(c.GetServiceName()) > 0 {
+		output[LabelService] = c.GetServiceName()
+	}
+	if len(c.GetHostname()) > 0 {
+		output[LabelServicePod] = c.GetHostname()
+	}
+	return output
 }

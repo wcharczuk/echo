@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	logger "github.com/blendlabs/go-logger"
-
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
 	exception "github.com/blendlabs/go-exception"
@@ -20,7 +18,7 @@ func New(cfg *Config) (*Client, error) {
 	var opts []grpc.DialOption
 	var err error
 
-	addr := cfg.GetAddr()
+	addr := cfg.GetCollectorAddr()
 	if strings.HasPrefix(addr, "unix://") {
 		opts = append(opts,
 			grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
@@ -32,19 +30,17 @@ func New(cfg *Config) (*Client, error) {
 	if cfg.GetUseTLS() {
 		var creds credentials.TransportCredentials
 		if len(cfg.GetCAFile()) > 0 {
-			creds, err = credentials.NewClientTLSFromFile(cfg.GetCAFile(), cfg.GetServerName())
+			creds, err = credentials.NewClientTLSFromFile(cfg.GetCAFile(), cfg.GetCollectorServerName())
 			if err != nil {
 				return nil, exception.Wrap(err)
 			}
 		} else {
-			creds = credentials.NewClientTLSFromCert(nil, cfg.GetServerName())
+			creds = credentials.NewClientTLSFromCert(nil, cfg.GetCollectorServerName())
 		}
-
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
 		opts = append(opts, grpc.WithInsecure())
 	}
-
 	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {
 		return nil, exception.Wrap(err)
@@ -60,7 +56,6 @@ func New(cfg *Config) (*Client, error) {
 
 // Client is a wrapping client for the collector endpoint.
 type Client struct {
-	log                *logger.Logger
 	conn               *grpc.ClientConn
 	defaultLabels      map[string]string
 	defaultAnnotations map[string]string
@@ -75,17 +70,6 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// WithLogger sets the logger.
-func (c *Client) WithLogger(log *logger.Logger) *Client {
-	c.log = log
-	return c
-}
-
-// Logger returns the logger.
-func (c *Client) Logger() *logger.Logger {
-	return c.log
-}
-
 // WithDefaultLabel sets a default label to inject into collected messages.
 func (c *Client) WithDefaultLabel(key, value string) *Client {
 	c.defaultLabels[key] = value
@@ -96,12 +80,6 @@ func (c *Client) WithDefaultLabel(key, value string) *Client {
 func (c *Client) WithDefaultAnnotation(key, value string) *Client {
 	c.defaultAnnotations[key] = value
 	return c
-}
-
-func (c *Client) debugf(format string, args ...interface{}) {
-	if c.log != nil {
-		c.log.Debugf(format, args...)
-	}
 }
 
 // Send sends a message.
@@ -116,10 +94,6 @@ func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
 
 // send sends a batch of messages.
 func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error) {
-	if c.log != nil {
-		c.log.Debugf("log-client sending %d messages", len(messages))
-	}
-
 	stream, openStreamErr := c.grpcSender.Push(ctx)
 	if openStreamErr != nil {
 		err = exception.Wrap(openStreamErr)
@@ -142,22 +116,6 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 		return
 	}
 	return
-}
-
-// Flush implements collection.AutoflushBuffer's flush handler interface.
-// When in doubt, just use SendMany.
-func (c *Client) Flush(objs []interface{}) {
-	if len(objs) == 0 {
-		return
-	}
-	typed := make([]logv1.Message, len(objs))
-	for x := 0; x < len(objs); x++ {
-		typed[x] = objs[x].(logv1.Message)
-	}
-	err := c.send(context.TODO(), typed)
-	if err != nil && c.log != nil {
-		c.log.Error(err)
-	}
 }
 
 func (c *Client) injectDefaultLabels(msg *logv1.Message) {
