@@ -72,7 +72,7 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 				Timestamp: protoutil.MarshalTimestamp(ee.Timestamp()),
 			},
 			Type:  logv1.MessageType_ERROR,
-			Error: newMessageExceptionInner(typed.Inner()),
+			Error: newMessageExceptionInner(typed),
 		}
 	}
 	return logv1.Message{
