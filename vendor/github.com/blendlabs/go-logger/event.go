@@ -10,6 +10,11 @@ type Event interface {
 	Timestamp() time.Time
 }
 
+// EventLabel determines if we should add another label field, `event-label` to output.
+type EventLabel interface {
+	Label() string
+}
+
 // EventEnabled determines if we should allow an event to be triggered or not.
 type EventEnabled interface {
 	IsEnabled() bool

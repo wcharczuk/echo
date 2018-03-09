@@ -39,6 +39,7 @@ type MessageEvent struct {
 	flag      Flag
 	flagColor AnsiColor
 	ts        time.Time
+	label     string
 	message   string
 }
 
@@ -73,6 +74,17 @@ func (me *MessageEvent) WithMessage(message string) *MessageEvent {
 // Message returns the message.
 func (me MessageEvent) Message() string {
 	return me.message
+}
+
+// WithLabel sets the label.
+func (me *MessageEvent) WithLabel(label string) *MessageEvent {
+	me.label = label
+	return me
+}
+
+// Label returns the label.
+func (me MessageEvent) Label() string {
+	return me.label
 }
 
 // WithFlagTextColor sets the message flag text color.

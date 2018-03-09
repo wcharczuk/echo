@@ -58,6 +58,7 @@ type ErrorEvent struct {
 	flag      Flag
 	flagColor AnsiColor
 	ts        time.Time
+	label     string
 	err       error
 	state     Any
 }
@@ -87,6 +88,17 @@ func (ee *ErrorEvent) WithFlag(flag Flag) *ErrorEvent {
 // Flag returns the event flag.
 func (ee ErrorEvent) Flag() Flag {
 	return ee.flag
+}
+
+// WithLabel sets the label.
+func (ee *ErrorEvent) WithLabel(label string) *ErrorEvent {
+	ee.label = label
+	return ee
+}
+
+// Label returns the label.
+func (ee ErrorEvent) Label() string {
+	return ee.label
 }
 
 // WithErr sets the error.

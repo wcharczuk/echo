@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-// NewWebRequestStart creates a new web request start event.
-func NewWebRequestStart(req *http.Request) *WebRequestEvent {
+// NewWebRequestEvent creates a new web request event.
+func NewWebRequestEvent(req *http.Request) *WebRequestEvent {
 	return &WebRequestEvent{
-		flag: WebRequestStart,
+		flag: WebRequest,
 		ts:   time.Now().UTC(),
 		req:  req,
 	}
 }
 
-// NewWebRequest creates a new web request event.
-func NewWebRequest(req *http.Request) *WebRequestEvent {
+// NewWebRequestStartEvent creates a new web request start event.
+func NewWebRequestStartEvent(req *http.Request) *WebRequestEvent {
 	return &WebRequestEvent{
-		flag: WebRequest,
+		flag: WebRequestStart,
 		ts:   time.Now().UTC(),
 		req:  req,
 	}
@@ -39,6 +39,7 @@ type WebRequestEvent struct {
 	ts   time.Time
 	req  *http.Request
 
+	label           string
 	route           string
 	statusCode      int
 	contentLength   int64
@@ -68,6 +69,17 @@ func (wre *WebRequestEvent) WithTimestamp(ts time.Time) *WebRequestEvent {
 // Timestamp returns the event timestamp.
 func (wre WebRequestEvent) Timestamp() time.Time {
 	return wre.ts
+}
+
+// WithLabel sets the label.
+func (wre *WebRequestEvent) WithLabel(label string) *WebRequestEvent {
+	wre.label = label
+	return wre
+}
+
+// Label returns the label.
+func (wre WebRequestEvent) Label() string {
+	return wre.label
 }
 
 // WithRequest sets the request metadata.

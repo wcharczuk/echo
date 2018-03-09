@@ -25,12 +25,22 @@ func NewFlagSetAll() *FlagSet {
 	}
 }
 
+// AllFlags is an alias to NewFlagSetAll()
+func AllFlags() *FlagSet {
+	return NewFlagSetAll()
+}
+
 // NewFlagSetNone returns a new FlagSet with no flags enabled.
 func NewFlagSetNone() *FlagSet {
 	return &FlagSet{
 		flags: make(map[Flag]bool),
 		none:  true,
 	}
+}
+
+// NoneFlags is an alias to NewFlagSetNone.
+func NoneFlags() *FlagSet {
+	return NewFlagSetNone()
 }
 
 // NewHiddenFlagSetFromEnv returns the hidden FlagSet from the environment.

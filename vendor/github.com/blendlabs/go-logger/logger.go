@@ -40,13 +40,15 @@ func NewFromConfig(cfg *Config) *Logger {
 	}
 }
 
-// NewFromEnv returns a new agent with settings read from the environment, including
-// the underlying writer.
+// NewFromEnv returns a new agent with settings read from the environment,
+// including the underlying writer.
 func NewFromEnv() *Logger {
 	return NewFromConfig(NewConfigFromEnv())
 }
 
-// All returns a valid agent that fires any and all events.
+// All returns a valid logger that fires any and all events, and includes a writer.
+// It is effectively an alias to:
+// 	New().WithFlags(NewFlagSetAll()).WithWriter(NewWriterFromEnv())
 func All() *Logger {
 	return New().WithFlags(NewFlagSetAll()).WithWriter(NewWriterFromEnv())
 }
@@ -104,16 +106,13 @@ func (l *Logger) Writers() []Writer {
 	return l.writers
 }
 
-// Writer returns the first logger writer if one has been provided.
-// It is something we've left for compatibility reasons.
-func (l *Logger) Writer() Writer {
-	if len(l.writers) > 0 {
-		return l.writers[0]
-	}
-	return nil
+// WithWriters sets the logger writers, overwriting any existing writers.
+func (l *Logger) WithWriters(writers ...Writer) *Logger {
+	l.writers = writers
+	return l
 }
 
-// WithWriter sets the logger writer.
+// WithWriter adds a logger writer.
 func (l *Logger) WithWriter(writer Writer) *Logger {
 	l.writers = append(l.writers, writer)
 	return l

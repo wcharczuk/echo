@@ -207,8 +207,8 @@ func (wr *TextWriter) FormatFlag(flag Flag, color AnsiColor) string {
 }
 
 // FormatLabel returns the app name.
-func (wr *TextWriter) FormatLabel() string {
-	return fmt.Sprintf("[%s]", wr.Colorize(wr.label, ColorBlue))
+func (wr *TextWriter) FormatLabel(contents string) string {
+	return fmt.Sprintf("[%s]", wr.Colorize(contents, ColorBlue))
 }
 
 // FormatTimestamp returns a new timestamp string.
@@ -254,7 +254,12 @@ func (wr *TextWriter) write(output io.Writer, e Event) error {
 	}
 
 	if wr.showLabel && len(wr.label) > 0 {
-		buf.WriteString(wr.FormatLabel())
+		buf.WriteString(wr.FormatLabel(wr.label))
+		buf.WriteRune(RuneSpace)
+	}
+
+	if typed, isTyped := e.(EventLabel); isTyped && len(typed.Label()) > 0 {
+		buf.WriteString(wr.FormatLabel(typed.Label()))
 		buf.WriteRune(RuneSpace)
 	}
 

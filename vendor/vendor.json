@@ -54,10 +54,10 @@
 			"revisionTime": "2018-03-07T22:33:09Z"
 		},
 		{
-			"checksumSHA1": "HCa67AGZJ0/l7njBjoHKl5aHEMk=",
+			"checksumSHA1": "kwM1OwW3C8Ua7hnXiX8K6KQwJJc=",
 			"path": "github.com/blendlabs/go-logger",
-			"revision": "0ef866b54b70a9ec38a7f156b8909385af880dec",
-			"revisionTime": "2018-03-06T22:45:56Z"
+			"revision": "620155cc2afa415a3d5811aaef9ebcdda443c507",
+			"revisionTime": "2018-03-09T21:07:50Z"
 		},
 		{
 			"checksumSHA1": "KsErEJbatT5ZwndFBdV2uuDrt0E=",
@@ -84,10 +84,10 @@
 			"revisionTime": "2018-03-05T20:00:42Z"
 		},
 		{
-			"checksumSHA1": "LlOtZu89M8kzj4NuN7WocqtYfbo=",
+			"checksumSHA1": "pqsxJuqtzDvXF88YpivLD1Pw7lY=",
 			"path": "github.com/blendlabs/go-web",
-			"revision": "aa826bd97dabb7322d985c8d35406447eb2239fc",
-			"revisionTime": "2018-03-06T23:20:20Z"
+			"revision": "0291442be5b8cd309a229f504cb54114ffbc08f4",
+			"revisionTime": "2018-03-09T19:19:45Z"
 		},
 		{
 			"checksumSHA1": "WX1+2gktHcBmE9MGwFSGs7oqexU=",

@@ -302,8 +302,12 @@ func (a *App) SetTLSCert(tlsCert, tlsKey []byte) error {
 	if err != nil {
 		return err
 	}
-	a.tlsConfig = &tls.Config{
-		Certificates: []tls.Certificate{cert},
+	if a.tlsConfig == nil {
+		a.tlsConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+		}
+	} else {
+		a.tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 	return nil
 }
@@ -362,6 +366,9 @@ func (a *App) WithTLSClientCertPool(certs ...[]byte) *App {
 
 // SetTLSClientCertPool set the client cert pool from a given set of pems.
 func (a *App) SetTLSClientCertPool(certs ...[]byte) error {
+	if a.tlsConfig == nil {
+		a.tlsConfig = &tls.Config{}
+	}
 	a.tlsConfig.ClientCAs = x509.NewCertPool()
 	for _, cert := range certs {
 		ok := a.tlsConfig.ClientCAs.AppendCertsFromPEM(cert)
@@ -381,6 +388,9 @@ func (a *App) SetTLSClientCertPool(certs ...[]byte) error {
 
 // WithTLSClientCertVerification sets the verification level for client certs.
 func (a *App) WithTLSClientCertVerification(verification tls.ClientAuthType) *App {
+	if a.tlsConfig == nil {
+		a.tlsConfig = &tls.Config{}
+	}
 	a.tlsConfig.ClientAuth = verification
 	return a
 }
@@ -866,7 +876,7 @@ func (a *App) renderAction(action Action) Handler {
 }
 
 func (a *App) loggerRequestStartEvent(ctx *Ctx) *logger.WebRequestEvent {
-	event := logger.NewWebRequestStart(ctx.Request).
+	event := logger.NewWebRequestStartEvent(ctx.Request).
 		WithState(ctx.state)
 
 	if ctx.Route() != nil {
@@ -876,7 +886,7 @@ func (a *App) loggerRequestStartEvent(ctx *Ctx) *logger.WebRequestEvent {
 }
 
 func (a *App) loggerRequestEvent(ctx *Ctx) *logger.WebRequestEvent {
-	event := logger.NewWebRequest(ctx.Request).
+	event := logger.NewWebRequestEvent(ctx.Request).
 		WithStatusCode(ctx.statusCode).
 		WithElapsed(ctx.Elapsed()).
 		WithContentLength(int64(ctx.contentLength)).

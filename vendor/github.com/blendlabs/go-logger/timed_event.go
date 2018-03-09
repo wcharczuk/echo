@@ -17,9 +17,9 @@ func Timedf(flag Flag, elapsed time.Duration, format string, args ...Any) *Timed
 }
 
 // NewTimedEventListener returns a new timed event listener.
-func NewTimedEventListener(listener func(te TimedEvent)) Listener {
+func NewTimedEventListener(listener func(te *TimedEvent)) Listener {
 	return func(e Event) {
-		if typed, isTyped := e.(TimedEvent); isTyped {
+		if typed, isTyped := e.(*TimedEvent); isTyped {
 			listener(typed)
 		}
 	}
@@ -29,6 +29,7 @@ func NewTimedEventListener(listener func(te TimedEvent)) Listener {
 type TimedEvent struct {
 	flag    Flag
 	ts      time.Time
+	label   string
 	message string
 	elapsed time.Duration
 }
@@ -53,6 +54,17 @@ func (te *TimedEvent) WithTimestamp(ts time.Time) *TimedEvent {
 // Timestamp returns the timed message timestamp.
 func (te TimedEvent) Timestamp() time.Time {
 	return te.ts
+}
+
+// WithLabel sets the label.
+func (te *TimedEvent) WithLabel(label string) *TimedEvent {
+	te.label = label
+	return te
+}
+
+// Label returns the label.
+func (te TimedEvent) Label() string {
+	return te.label
 }
 
 // WithMessage sets the message.
