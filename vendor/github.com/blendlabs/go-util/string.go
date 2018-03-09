@@ -341,14 +341,19 @@ func (su stringUtil) Int(input int) string {
 	return strconv.Itoa(input)
 }
 
-// Int64ToString turns an int64 into a string
+// Int64 turns an int64 into a string
 func (su stringUtil) Int64(input int64) string {
 	return strconv.FormatInt(input, 10)
 }
 
-// Float64ToString turns an float64 into a string
+// Float64 turns an float64 into a string
 func (su stringUtil) Float64(input float64) string {
 	return strconv.FormatFloat(input, 'f', -1, 64)
+}
+
+// Money turns an float64 into a string
+func (su stringUtil) Money(money float64) string {
+	return fmt.Sprintf("%.2f", money)
 }
 
 // StripQuotes removes quote characters from a string.

@@ -15,7 +15,7 @@ package v1
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import logv15 "git.blendlabs.com/blend/protos/log/v1"
+import logv16 "git.blendlabs.com/blend/protos/log/v1"
 import google_protobuf1 "github.com/golang/protobuf/ptypes/duration"
 
 import (
@@ -98,7 +98,7 @@ func (c *collectorClient) Push(ctx context.Context, opts ...grpc.CallOption) (Co
 }
 
 type Collector_PushClient interface {
-	Send(*logv15.Message) error
+	Send(*logv16.Message) error
 	CloseAndRecv() (*ReceiveSummary, error)
 	grpc.ClientStream
 }
@@ -107,7 +107,7 @@ type collectorPushClient struct {
 	grpc.ClientStream
 }
 
-func (x *collectorPushClient) Send(m *logv15.Message) error {
+func (x *collectorPushClient) Send(m *logv16.Message) error {
 	return x.ClientStream.SendMsg(m)
 }
 
@@ -139,7 +139,7 @@ func _Collector_Push_Handler(srv interface{}, stream grpc.ServerStream) error {
 
 type Collector_PushServer interface {
 	SendAndClose(*ReceiveSummary) error
-	Recv() (*logv15.Message, error)
+	Recv() (*logv16.Message, error)
 	grpc.ServerStream
 }
 
@@ -151,8 +151,8 @@ func (x *collectorPushServer) SendAndClose(m *ReceiveSummary) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *collectorPushServer) Recv() (*logv15.Message, error) {
-	m := new(logv15.Message)
+func (x *collectorPushServer) Recv() (*logv16.Message, error) {
+	m := new(logv16.Message)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}

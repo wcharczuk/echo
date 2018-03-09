@@ -17,15 +17,54 @@ var (
 	_envLock = sync.Mutex{}
 )
 
+// Service specific constants
 const (
-	// TagNameEnvironmentVariableName is the struct tag for what environment variable to use to populate a field.
-	TagNameEnvironmentVariableName = "env"
-	// FlagCSV is a field tag flag (say that 10 times fast).
-	FlagCSV = "csv"
-	// FlagBase64 is a field tag flag (say that 10 times fast).
-	FlagBase64 = "base64"
-	// FlagBytes is a field tag flag (say that 10 times fast).
-	FlagBytes = "bytes"
+	// VarServiceEnv is a common env var name.
+	VarServiceEnv = "SERVICE_ENV"
+	// VarServiceName is a common env var name.
+	VarServiceName = "SERVICE_NAME"
+	// VarServiceSecret is a common env var name.
+	VarServiceSecret = "SERVICE_SECRET"
+	// VarPort is a common env var name.
+	VarPort = "PORT"
+	// VarSecurePort is a common env var name.
+	VarSecurePort = "SECURE_PORT"
+	// VarTLSCertPath is a common env var name.
+	VarTLSCertPath = "TLS_CERT_PATH"
+	// VarTLSKeyPath is a common env var name.
+	VarTLSKeyPath = "TLS_KEY_PATH"
+	// VarTLSCert is a common env var name.
+	VarTLSCert = "TLS_CERT"
+	// VarTLSKey is a common env var name.
+	VarTLSKey = "TLS_KEY"
+
+	// VarPGIdleConns is a common env var name.
+	VarPGIdleConns = "PG_IDLE_CONNS"
+	// VarPGMaxConns is a common env var name.
+	VarPGMaxConns = "PG_MAX_CONNS"
+
+	// ServiceEnvDev is a service environment.
+	ServiceEnvDev = "dev"
+	// ServiceEnvCI is a service environment.
+	ServiceEnvCI = "ci"
+	// ServiceEnvPreprod is a service environment.
+	ServiceEnvPreprod = "preprod"
+	// ServiceEnvBeta is a service environment.
+	ServiceEnvBeta = "beta"
+	// ServiceEnvProd is a service environment.
+	ServiceEnvProd = "prod"
+)
+
+// ReadIntoConstants
+const (
+	// FieldTagEnv is the struct tag for what environment variable to use to populate a field.
+	FieldTagEnv = "env"
+	// FieldFlagCSV is a field tag flag (say that 10 times fast).
+	FieldFlagCSV = "csv"
+	// FieldFlagBase64 is a field tag flag (say that 10 times fast).
+	FieldFlagBase64 = "base64"
+	// FieldFlagBytes is a field tag flag (say that 10 times fast).
+	FieldFlagBytes = "bytes"
 )
 
 // Marshaler is a type that implements `ReadInto`.
@@ -399,6 +438,34 @@ func (ev Vars) Raw() []string {
 	return raw
 }
 
+// --------------------------------------------------------------------------------
+// Service Specific helpers
+// --------------------------------------------------------------------------------
+
+// ServiceEnv is a common environment variable for the services environment.
+// Common values include "dev", "ci", "sandbox", "preprod", "beta", and "prod".
+func (ev Vars) ServiceEnv(defaults ...string) string {
+	return ev.String(VarServiceEnv, defaults...)
+}
+
+// IsProduction returns if the ServiceEnv is a production environment.
+func (ev Vars) IsProduction() bool {
+	return ev.ServiceEnv() == ServiceEnvPreprod ||
+		ev.ServiceEnv() == ServiceEnvProd
+}
+
+// IsProdlike returns if the ServiceEnv is "prodlike".
+func (ev Vars) IsProdlike() bool {
+	return ev.ServiceEnv() == ServiceEnvPreprod ||
+		ev.ServiceEnv() == ServiceEnvBeta ||
+		ev.ServiceEnv() == ServiceEnvProd
+}
+
+// ServiceName is a common environment variable for the service's name.
+func (ev Vars) ServiceName(defaults ...string) string {
+	return ev.String(VarServiceName, defaults...)
+}
+
 // ReadInto reads the environment into tagged fields on the `obj`.
 func (ev Vars) ReadInto(obj interface{}) error {
 	// check if the type implements marshaler.
@@ -443,7 +510,7 @@ func (ev Vars) ReadInto(obj interface{}) error {
 			continue
 		}
 
-		tag = field.Tag.Get(TagNameEnvironmentVariableName)
+		tag = field.Tag.Get(FieldTagEnv)
 		if len(tag) > 0 {
 			var csv bool
 			var bytes bool
@@ -453,11 +520,11 @@ func (ev Vars) ReadInto(obj interface{}) error {
 			envVar = pieces[0]
 			if len(pieces) > 1 {
 				for y := 1; y < len(pieces); y++ {
-					if pieces[y] == FlagCSV {
+					if pieces[y] == FieldFlagCSV {
 						csv = true
-					} else if pieces[y] == FlagBase64 {
+					} else if pieces[y] == FieldFlagBase64 {
 						base64 = true
-					} else if pieces[y] == FlagBytes {
+					} else if pieces[y] == FieldFlagBytes {
 						bytes = true
 					}
 				}

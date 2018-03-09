@@ -19,28 +19,33 @@ message HttpRequest {
   string host = 4;
   string path = 5;
   string queryString = 6;
-  // the following describe the client
-  string userAgent = 7;
-  string remoteAddr = 8;
-  // referrer isn't useful in backend contexts
-  // but could be for frontend
-  string referrer = 9; 
-
-  // generally only applies to post requests
-  int64 contentLength = 10;
-  string contentType = 11;
-  string contentEncoding = 12;
-
   // route is kind of implementation specific;
   // it depends on the app having a muxer
   // route should be the path less actual variables
-  string route = 13;
+  string route = 7;
+  // the following describe the client
+  string userAgent = 10;
+  // remoteAddr is the reported remote addr for the request
+  // very often will be a load balancer or similar
+  string remoteAddr = 11;
+  // remoteIP should be forwarded addr headers, or the ip component of remoteAddr
+  string remoteIP = 12;
+  // referrer isn't useful in backend contexts
+  // but could be for frontend
+  string referrer = 13; 
+
+  // contentLength generally only applies to post requests
+  int64 contentLength = 20;
+  // contentType generally only applies to post requests
+  string contentType = 21;
+  // contentEncoding generally only applies to post requests
+  string contentEncoding = 22;
 
   // response fields
-  google.protobuf.Duration elapsed = 20;
-  int32 statusCode = 21;
-  int64 responseContentLength = 22;
-  string responseContentEncoding = 23;
-  string responseContentType = 24;
+  google.protobuf.Duration elapsed = 30;
+  int32 statusCode = 31;
+  int64 responseContentLength = 32;
+  string responseContentEncoding = 33;
+  string responseContentType = 34;
 } 
 // [END messages]

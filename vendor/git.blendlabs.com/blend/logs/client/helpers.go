@@ -1,14 +1,16 @@
 package client
 
 import (
+	"fmt"
 	"os"
 	"time"
-
-	"git.blendlabs.com/blend/logs/pkg/protoutil"
 
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
 	"github.com/blendlabs/go-exception"
 	logger "github.com/blendlabs/go-logger"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
 // HasCollectorUnixSocket returns if the unix socket is present for a given config.
@@ -29,7 +31,7 @@ func NewMessageRaw(ts time.Time, body []byte) logv1.Message {
 	return logv1.Message{
 		Type: logv1.MessageType_RAW,
 		Meta: &logv1.Meta{
-			Timestamp: protoutil.MarshalTimestamp(ts),
+			Timestamp: MarshalTimestamp(ts),
 		},
 		Raw: &logv1.Raw{
 			Body: body,
@@ -42,7 +44,7 @@ func NewMessageValues(ts time.Time, values map[string]string) logv1.Message {
 	return logv1.Message{
 		Type: logv1.MessageType_VALUES,
 		Meta: &logv1.Meta{
-			Timestamp: protoutil.MarshalTimestamp(ts),
+			Timestamp: MarshalTimestamp(ts),
 		},
 		Values: &logv1.Values{
 			Values: values,
@@ -55,7 +57,7 @@ func NewMessageInfo(me *logger.MessageEvent) logv1.Message {
 	return logv1.Message{
 		Type: logv1.MessageType_INFO,
 		Meta: &logv1.Meta{
-			Timestamp: protoutil.MarshalTimestamp(me.Timestamp()),
+			Timestamp: MarshalTimestamp(me.Timestamp()),
 		},
 		Info: &logv1.Info{
 			Flag:    string(me.Flag()),
@@ -69,7 +71,7 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 	if typed, isTyped := ee.Err().(*exception.Ex); isTyped {
 		return logv1.Message{
 			Meta: &logv1.Meta{
-				Timestamp: protoutil.MarshalTimestamp(ee.Timestamp()),
+				Timestamp: MarshalTimestamp(ee.Timestamp()),
 			},
 			Type:  logv1.MessageType_ERROR,
 			Error: newMessageExceptionInner(typed),
@@ -78,7 +80,7 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 	return logv1.Message{
 		Type: logv1.MessageType_ERROR,
 		Meta: &logv1.Meta{
-			Timestamp: protoutil.MarshalTimestamp(ee.Timestamp()),
+			Timestamp: MarshalTimestamp(ee.Timestamp()),
 		},
 		Error: &logv1.Error{
 			Class: ee.Err().Error(),
@@ -88,22 +90,24 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 
 // NewMessageHTTPRequest returns an http request log message.
 func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
+	fmt.Printf("http request remote addr `%s` vs. `%s`\n", wr.Request().RemoteAddr, logger.GetIP(wr.Request()))
 	return logv1.Message{
 		Type: logv1.MessageType_HTTP,
 		Meta: &logv1.Meta{
-			Timestamp: protoutil.MarshalTimestamp(wr.Timestamp()),
+			Timestamp: MarshalTimestamp(wr.Timestamp()),
 		},
 		HttpRequest: &logv1.HttpRequest{
 			ContentLength:   wr.Request().ContentLength,
 			ContentType:     wr.Request().Header.Get("Content-Type"),
 			ContentEncoding: wr.Request().Header.Get("Content-Encoding"),
-			Elapsed:         protoutil.MarshalDuration(wr.Elapsed()),
+			Elapsed:         MarshalDuration(wr.Elapsed()),
 			Host:            wr.Request().Host,
 			Method:          wr.Request().Method,
 			Path:            wr.Request().URL.Path,
 			QueryString:     wr.Request().URL.RawQuery,
 			Referrer:        wr.Request().Referer(),
-			RemoteAddr:      logger.GetIP(wr.Request()),
+			RemoteAddr:      wr.Request().RemoteAddr,
+			RemoteIP:        logger.GetIP(wr.Request()),
 			Scheme:          wr.Request().URL.Scheme,
 			StatusCode:      int32(wr.StatusCode()),
 			UserAgent:       wr.Request().UserAgent(),
@@ -130,4 +134,28 @@ func newMessageExceptionInner(err error) *logv1.Error {
 	return &logv1.Error{
 		Class: err.Error(),
 	}
+}
+
+// MarshalTimestamp marshals a timestamp as proto.
+func MarshalTimestamp(t time.Time) *timestamp.Timestamp {
+	tv, _ := ptypes.TimestampProto(t)
+	return tv
+}
+
+// UnmarshalTimestamp marshals a timestamp as proto.
+func UnmarshalTimestamp(t *timestamp.Timestamp) time.Time {
+	tv, _ := ptypes.Timestamp(t)
+	return tv
+}
+
+// MarshalDuration marshals a duration as proto.
+func MarshalDuration(d time.Duration) *duration.Duration {
+	dv := ptypes.DurationProto(d)
+	return dv
+}
+
+// UnmarshalDuration unmarshals a duration.
+func UnmarshalDuration(d *duration.Duration) time.Duration {
+	dv, _ := ptypes.Duration(d)
+	return dv
 }
