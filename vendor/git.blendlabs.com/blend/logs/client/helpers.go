@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -90,7 +89,6 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 
 // NewMessageHTTPRequest returns an http request log message.
 func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
-	fmt.Printf("http request remote addr `%s` vs. `%s`\n", wr.Request().RemoteAddr, logger.GetIP(wr.Request()))
 	return logv1.Message{
 		Type: logv1.MessageType_HTTP,
 		Meta: &logv1.Meta{
