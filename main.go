@@ -82,6 +82,10 @@ func main() {
 		return r.RawWithContentType(web.ContentTypeText, body)
 	})
 
-	client.AddListeners(agent, client.NewConfigFromEnv())
+	collector, err := client.AddListeners(agent, client.NewConfigFromEnv())
+	if err != nil {
+		agent.SyncWarning(err)
+	}
+	defer collector.Close()
 	agent.SyncFatalExit(app.Start())
 }
