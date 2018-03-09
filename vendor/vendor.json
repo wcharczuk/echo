@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "xdZ1BclnQ9b1y/vB0CTmFacXUwo=",
+			"checksumSHA1": "GrM7hNSjU0zc90dv/bDEyYxC8Lc=",
 			"path": "git.blendlabs.com/blend/logs/client",
-			"revision": "9edfa205a420c3dc342b2ccada821297f40b43ad",
-			"revisionTime": "2018-03-09T01:01:04Z"
+			"revision": "b9d0736320d61dfecba2f620aed7c727207d9ee3",
+			"revisionTime": "2018-03-09T21:51:32Z"
 		},
 		{
 			"checksumSHA1": "WoV6egvdgiqY5NjlI7EdDj/fChg=",
@@ -21,10 +21,10 @@
 			"revisionTime": "2018-03-08T02:31:48Z"
 		},
 		{
-			"checksumSHA1": "FrFg8nqTt4UP2Yhrzo2v4OfR2x4=",
+			"checksumSHA1": "1b+fwv3Q91WQZ1Sy9edcvvBNXv4=",
 			"path": "git.blendlabs.com/blend/logs/pkg/protoutil",
-			"revision": "06c67a28b4692fa7b9b9f432cb0c295a76e76630",
-			"revisionTime": "2018-03-08T02:31:48Z"
+			"revision": "b9d0736320d61dfecba2f620aed7c727207d9ee3",
+			"revisionTime": "2018-03-09T21:51:32Z"
 		},
 		{
 			"checksumSHA1": "60PhIxeepkZqywTHGMEfCqpbT3E=",

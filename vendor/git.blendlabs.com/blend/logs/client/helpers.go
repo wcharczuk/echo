@@ -103,7 +103,7 @@ func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
 			Path:            wr.Request().URL.Path,
 			QueryString:     wr.Request().URL.RawQuery,
 			Referrer:        wr.Request().Referer(),
-			RemoteAddr:      wr.Request().RemoteAddr,
+			RemoteAddr:      logger.GetIP(wr.Request()),
 			Scheme:          wr.Request().URL.Scheme,
 			StatusCode:      int32(wr.StatusCode()),
 			UserAgent:       wr.Request().UserAgent(),

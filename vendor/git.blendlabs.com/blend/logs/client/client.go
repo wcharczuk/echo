@@ -64,6 +64,9 @@ type Client struct {
 
 // Close closes the client.
 func (c *Client) Close() error {
+	if c == nil {
+		return nil
+	}
 	if c.conn != nil {
 		return c.conn.Close()
 	}

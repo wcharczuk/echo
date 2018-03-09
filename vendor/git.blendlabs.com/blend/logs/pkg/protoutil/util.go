@@ -48,7 +48,7 @@ func UnmarshalHTTPRequest(req *logv1.HttpRequest) *http.Request {
 
 // UnmarshalHTTPRequestAsEvent unmarshals an http request message as a logger event.
 func UnmarshalHTTPRequestAsEvent(req *logv1.HttpRequest) *logger.WebRequestEvent {
-	return logger.NewWebRequest(UnmarshalHTTPRequest(req)).
+	return logger.NewWebRequestEvent(UnmarshalHTTPRequest(req)).
 		WithStatusCode(int(req.StatusCode)).
 		WithElapsed(UnmarshalDuration(req.Elapsed)).
 		WithContentType(req.ResponseContentType).
