@@ -1,0 +1,25 @@
+// [START declaration]
+syntax = "proto3";
+package logv1;
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1";
+// [END go_declaration]
+
+// [START messages]
+message Audit {
+  // princial is typically the entity performing the action
+  string principal = 1;
+  // verb is the action, i.e. create, update, delete etc.
+  string verb = 2;
+  // noun is the type of object being modified, i.e. user
+  string noun = 3;
+  // subject is the specific instance of the noun
+  string subject = 4;
+  // property is an extra differentiating identifier in case you need it
+  string property = 5;
+  // extra is here in case you need to add more information
+  map<string,string> extra = 6;
+} 
+// [END messages]

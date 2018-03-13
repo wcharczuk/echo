@@ -21,7 +21,7 @@ type Raw struct {
 func (m *Raw) Reset()                    { *m = Raw{} }
 func (m *Raw) String() string            { return proto.CompactTextString(m) }
 func (*Raw) ProtoMessage()               {}
-func (*Raw) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
+func (*Raw) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 func (m *Raw) GetBody() []byte {
 	if m != nil {
@@ -34,9 +34,9 @@ func init() {
 	proto.RegisterType((*Raw)(nil), "logv1.Raw")
 }
 
-func init() { proto.RegisterFile("log/v1/Raw.proto", fileDescriptor5) }
+func init() { proto.RegisterFile("log/v1/Raw.proto", fileDescriptor6) }
 
-var fileDescriptor5 = []byte{
+var fileDescriptor6 = []byte{
 	// 109 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xc8, 0xc9, 0x4f, 0xd7,
 	0x2f, 0x33, 0xd4, 0x0f, 0x4a, 0x2c, 0xd7, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0xcd, 0xc9,

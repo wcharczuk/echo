@@ -21,7 +21,7 @@ type Info struct {
 func (m *Info) Reset()                    { *m = Info{} }
 func (m *Info) String() string            { return proto.CompactTextString(m) }
 func (*Info) ProtoMessage()               {}
-func (*Info) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (*Info) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 func (m *Info) GetFlag() string {
 	if m != nil {
@@ -41,9 +41,9 @@ func init() {
 	proto.RegisterType((*Info)(nil), "logv1.Info")
 }
 
-func init() { proto.RegisterFile("log/v1/Info.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("log/v1/Info.proto", fileDescriptor3) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor3 = []byte{
 	// 125 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0xcc, 0xc9, 0x4f, 0xd7,
 	0x2f, 0x33, 0xd4, 0xf7, 0xcc, 0x4b, 0xcb, 0xd7, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0xcd,

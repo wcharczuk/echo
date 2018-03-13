@@ -55,7 +55,7 @@ type HttpRequest struct {
 func (m *HttpRequest) Reset()                    { *m = HttpRequest{} }
 func (m *HttpRequest) String() string            { return proto.CompactTextString(m) }
 func (*HttpRequest) ProtoMessage()               {}
-func (*HttpRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*HttpRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *HttpRequest) GetMethod() string {
 	if m != nil {
@@ -194,9 +194,9 @@ func init() {
 	proto.RegisterType((*HttpRequest)(nil), "logv1.HttpRequest")
 }
 
-func init() { proto.RegisterFile("log/v1/HttpRequest.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("log/v1/HttpRequest.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 410 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0xc1, 0x6e, 0xd3, 0x40,
 	0x10, 0x86, 0x65, 0x52, 0xa7, 0x74, 0x42, 0x05, 0x5a, 0xda, 0xb2, 0x54, 0x28, 0x98, 0x0a, 0x84,

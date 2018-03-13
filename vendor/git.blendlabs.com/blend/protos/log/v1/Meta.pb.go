@@ -28,7 +28,7 @@ type Meta struct {
 func (m *Meta) Reset()                    { *m = Meta{} }
 func (m *Meta) String() string            { return proto.CompactTextString(m) }
 func (*Meta) ProtoMessage()               {}
-func (*Meta) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (*Meta) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 func (m *Meta) GetTimestamp() *google_protobuf1.Timestamp {
 	if m != nil {
@@ -62,9 +62,9 @@ func init() {
 	proto.RegisterType((*Meta)(nil), "logv1.Meta")
 }
 
-func init() { proto.RegisterFile("log/v1/Meta.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("log/v1/Meta.proto", fileDescriptor5) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor5 = []byte{
 	// 265 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x91, 0xc1, 0x4b, 0xc3, 0x30,
 	0x14, 0xc6, 0x69, 0xbb, 0x0d, 0xfa, 0x7a, 0x99, 0x41, 0xb0, 0x14, 0xc1, 0x22, 0x88, 0x3d, 0x25,

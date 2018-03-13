@@ -1,0 +1,27 @@
+// [START declaration]
+syntax = "proto3";
+package logv1;
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1";
+// [END go_declaration]
+
+enum SyslogSeverity {
+    SYSSEV_EMERG = 0;
+    SYSSEV_ALERT = 1;
+    SYSSEV_CRIT = 2;
+    SYSSEV_ERR = 3;
+    SYSSEV_WARNING = 4;
+    SYSSEV_NOTICE = 5;
+    SYSSEV_INFO = 6;
+    SYSSEV_DEBUG = 7;
+}
+
+// [START messages]
+message Syslog {
+    SyslogSeverity severity  = 2;
+    string facility  = 1;
+    string  message = 3;
+}
+// [END messages]

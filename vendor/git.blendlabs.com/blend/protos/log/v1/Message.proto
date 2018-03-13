@@ -7,7 +7,8 @@ import "log/v1/Values.proto";
 import "log/v1/Error.proto";
 import "log/v1/HttpRequest.proto";
 import "log/v1/Info.proto";
-import "smoke-signal/v1/Result.proto";
+import "log/v1/Syslog.proto";
+import "log/v1/Audit.proto";
 // [END declaration]
 
 // [START go_declaration]
@@ -20,8 +21,8 @@ enum MessageType {
   ERROR = 2;
   HTTP = 3;
   INFO = 4;
-
-  SMOKE_SIGNAL_RESULT = 100;
+  SYSLOG = 5;
+  AUDIT = 6;
 }
 
 // [START messages]
@@ -37,8 +38,7 @@ message Message {
     Error error = 102; // 100 + messageType
     HttpRequest httpRequest = 103; // 100 + messageType
     Info info = 104; // 100 + messageType
-
-    // these are nonstandard, app specific message types
-    smokesignalv1.Result smokeSignalResult = 200;
+    Syslog syslog = 105; // 100 + messageType;
+    Audit audit = 106; // 100 + messageType
 } 
 // [END messages]
