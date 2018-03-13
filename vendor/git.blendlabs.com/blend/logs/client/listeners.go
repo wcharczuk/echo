@@ -27,6 +27,13 @@ func NewLoggerListenerError(c *Client) logger.Listener {
 	})
 }
 
+// NewLoggerListenerAudit returns a logger listener.
+func NewLoggerListenerAudit(c *Client) logger.Listener {
+	return logger.NewAuditEventListener(func(me *logger.AuditEvent) {
+		c.Send(context.TODO(), NewMessageAudit(me))
+	})
+}
+
 // AddListeners adds logger listeners that pipe to the log collector.
 func AddListeners(agent *logger.Logger, logsCfg *Config) (*Client, error) {
 	if HasCollectorUnixSocket(logsCfg) {
@@ -40,6 +47,7 @@ func AddListeners(agent *logger.Logger, logsCfg *Config) (*Client, error) {
 			logs.WithDefaultLabel(key, value)
 		}
 		agent.Listen(logger.WebRequest, LoggerListenerName, NewLoggerListenerHTTPRequest(logs))
+		agent.Listen(logger.Audit, LoggerListenerName, NewLoggerListenerAudit(logs))
 		agent.Listen(logger.Silly, LoggerListenerName, NewLoggerListenerInfo(logs))
 		agent.Listen(logger.Info, LoggerListenerName, NewLoggerListenerInfo(logs))
 		agent.Listen(logger.Debug, LoggerListenerName, NewLoggerListenerInfo(logs))

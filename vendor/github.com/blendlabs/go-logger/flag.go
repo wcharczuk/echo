@@ -23,6 +23,9 @@ const (
 	WebRequestStart Flag = "web.request.start"
 	// WebRequest is an event flag.
 	WebRequest Flag = "web.request"
+
+	// Audit is an event flag.
+	Audit Flag = "audit"
 )
 
 // Flag represents an event type that can be enabled or disabled.

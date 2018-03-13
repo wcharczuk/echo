@@ -87,6 +87,23 @@ func NewMessageError(ee *logger.ErrorEvent) logv1.Message {
 	}
 }
 
+func newMessageExceptionInner(err error) *logv1.Error {
+	if err == nil {
+		return nil
+	}
+	if typed, isTyped := err.(*exception.Ex); isTyped {
+		return &logv1.Error{
+			Class:   typed.Class(),
+			Message: typed.Message(),
+			Stack:   typed.StackTrace().AsStringSlice(),
+			Inner:   newMessageExceptionInner(typed.Inner()),
+		}
+	}
+	return &logv1.Error{
+		Class: err.Error(),
+	}
+}
+
 // NewMessageHTTPRequest returns an http request log message.
 func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
 	return logv1.Message{
@@ -110,6 +127,7 @@ func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
 			StatusCode:      int32(wr.StatusCode()),
 			UserAgent:       wr.Request().UserAgent(),
 			Url:             wr.Request().URL.String(),
+			Route:           wr.Route(),
 			ResponseContentLength:   wr.ContentLength(),
 			ResponseContentType:     wr.ContentType(),
 			ResponseContentEncoding: wr.ContentEncoding(),
@@ -117,20 +135,21 @@ func NewMessageHTTPRequest(wr *logger.WebRequestEvent) logv1.Message {
 	}
 }
 
-func newMessageExceptionInner(err error) *logv1.Error {
-	if err == nil {
-		return nil
-	}
-	if typed, isTyped := err.(*exception.Ex); isTyped {
-		return &logv1.Error{
-			Class:   typed.Class(),
-			Message: typed.Message(),
-			Stack:   typed.StackTrace().AsStringSlice(),
-			Inner:   newMessageExceptionInner(typed.Inner()),
-		}
-	}
-	return &logv1.Error{
-		Class: err.Error(),
+// NewMessageAudit returns a new audit message.
+func NewMessageAudit(ae *logger.AuditEvent) logv1.Message {
+	return logv1.Message{
+		Type: logv1.MessageType_AUDIT,
+		Meta: &logv1.Meta{
+			Timestamp: MarshalTimestamp(ae.Timestamp()),
+		},
+		Audit: &logv1.Audit{
+			Principal: ae.Principal(),
+			Verb:      ae.Verb(),
+			Noun:      ae.Noun(),
+			Subject:   ae.Subject(),
+			Property:  ae.Property(),
+			Extra:     ae.Extra(),
+		},
 	}
 }
 

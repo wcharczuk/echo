@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http"
 	"strconv"
-	"time"
 )
 
 // TextWriteRequestStart is a helper method to write request start events to a writer.
@@ -17,20 +16,21 @@ func TextWriteRequestStart(tf TextFormatter, buf *bytes.Buffer, req *http.Reques
 }
 
 // TextWriteRequest is a helper method to write request complete events to a writer.
-func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode int, contentLength int64, contentType string, elapsed time.Duration) {
+func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, wre *WebRequestEvent) {
+	req := wre.Request()
 	buf.WriteString(GetIP(req))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(tf.Colorize(req.Method, ColorBlue))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(req.URL.Path)
 	buf.WriteRune(RuneSpace)
-	buf.WriteString(tf.ColorizeByStatusCode(statusCode, strconv.Itoa(statusCode)))
+	buf.WriteString(tf.ColorizeByStatusCode(wre.StatusCode(), strconv.Itoa(wre.StatusCode())))
 	buf.WriteRune(RuneSpace)
-	buf.WriteString(elapsed.String())
+	buf.WriteString(wre.Elapsed().String())
 	buf.WriteRune(RuneSpace)
-	buf.WriteString(contentType)
+	buf.WriteString(wre.ContentType())
 	buf.WriteRune(RuneSpace)
-	buf.WriteString(FormatFileSize(contentLength))
+	buf.WriteString(FormatFileSize(wre.ContentLength()))
 }
 
 // JSONWriteRequestStart marshals a request start as json.
@@ -44,16 +44,19 @@ func JSONWriteRequestStart(req *http.Request) JSONObj {
 }
 
 // JSONWriteRequest marshals a request as json.
-func JSONWriteRequest(req *http.Request, statusCode int, contentLength int64, contentType, contentEncoding string, elapsed time.Duration) JSONObj {
+func JSONWriteRequest(wre *WebRequestEvent) JSONObj {
+	req := wre.Request()
 	return JSONObj{
 		"ip":              GetIP(req),
 		"verb":            req.Method,
 		"path":            req.URL.Path,
+		"queryString":     req.URL.RawQuery,
 		"host":            req.Host,
-		"contentLength":   contentLength,
-		"contentType":     contentType,
-		"contentEncoding": contentEncoding,
-		"statusCode":      statusCode,
-		JSONFieldElapsed:  Milliseconds(elapsed),
+		"route":           wre.Route(),
+		"contentLength":   wre.ContentLength(),
+		"contentType":     wre.ContentType(),
+		"contentEncoding": wre.ContentEncoding(),
+		"statusCode":      wre.StatusCode(),
+		JSONFieldElapsed:  Milliseconds(wre.Elapsed()),
 	}
 }
