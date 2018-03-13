@@ -1,11 +1,2 @@
 accessibility: private
 containerPort: 5000
-
-volumes:
-- name: collector-socket-path
-  hostPath:
-    path: /var/run/log-collector
-
-volumeMounts:
-- name: collector-socket-path
-  mountPath: /var/run/log-collector
