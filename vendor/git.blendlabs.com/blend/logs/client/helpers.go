@@ -176,3 +176,8 @@ func UnmarshalDuration(d *duration.Duration) time.Duration {
 	dv, _ := ptypes.Duration(d)
 	return dv
 }
+
+// MetaProvider is a type that has message meta.
+type MetaProvider interface {
+	GetMeta() *logv1.Meta
+}

@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "c1BU4Y1Rteh3a5YNwpG5rqAcopM=",
+			"checksumSHA1": "jCCU0iUiQW1an2i2MZ2AsXDTFFo=",
 			"path": "git.blendlabs.com/blend/logs/client",
-			"revision": "b7a93dea9e5bb42f3b1c09daa02f78386b36a235",
-			"revisionTime": "2018-03-13T02:55:12Z"
+			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
+			"revisionTime": "2018-03-28T00:45:04Z"
 		},
 		{
 			"checksumSHA1": "82gocGk0vCvk+Q8pIUAgWL6Hjf0=",
@@ -19,8 +19,14 @@
 			"checksumSHA1": "3PpPvZd92WIe/EnKDU+FXIlcLwc=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/git.blendlabs.com/blend/protos/log/v1",
 			"path": "git.blendlabs.com/blend/protos/log/v1",
-			"revision": "b7a93dea9e5bb42f3b1c09daa02f78386b36a235",
-			"revisionTime": "2018-03-13T02:55:12Z"
+			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
+			"revisionTime": "2018-03-28T00:45:04Z"
+		},
+		{
+			"checksumSHA1": "CwWK6SPtW2cNpm5yPuMqDtV80hA=",
+			"path": "git.blendlabs.com/blend/protos/log/v1beta",
+			"revision": "a53970c1890e30e7dc3136bd2d76f4454b80fe25",
+			"revisionTime": "2018-03-27T22:35:48Z"
 		},
 		{
 			"checksumSHA1": "DZLg0C8h3jeutRpuzsbvQJRR9l0=",
@@ -69,8 +75,8 @@
 			"checksumSHA1": "WX1+2gktHcBmE9MGwFSGs7oqexU=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/github.com/golang/protobuf/proto",
 			"path": "github.com/golang/protobuf/proto",
-			"revision": "a65699b2270e3051921b8a5c17c3a5218cd57227",
-			"revisionTime": "2018-03-09T22:55:10Z"
+			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
+			"revisionTime": "2018-03-28T00:45:04Z"
 		},
 		{
 			"checksumSHA1": "VfkiItDBFFkZluaAMAzJipDXNBY=",
@@ -90,15 +96,15 @@
 			"checksumSHA1": "hUjAj0dheFVDl84BAnSWj9qy2iY=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/github.com/golang/protobuf/ptypes/duration",
 			"path": "github.com/golang/protobuf/ptypes/duration",
-			"revision": "a65699b2270e3051921b8a5c17c3a5218cd57227",
-			"revisionTime": "2018-03-09T22:55:10Z"
+			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
+			"revisionTime": "2018-03-28T00:45:04Z"
 		},
 		{
 			"checksumSHA1": "O2ItP5rmfrgxPufhjJXbFlXuyL8=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/github.com/golang/protobuf/ptypes/timestamp",
 			"path": "github.com/golang/protobuf/ptypes/timestamp",
-			"revision": "a65699b2270e3051921b8a5c17c3a5218cd57227",
-			"revisionTime": "2018-03-09T22:55:10Z"
+			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
+			"revisionTime": "2018-03-28T00:45:04Z"
 		},
 		{
 			"checksumSHA1": "GtamqiJoL7PGHsN454AoffBFMa8=",

@@ -8,6 +8,7 @@ import (
 
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
+	logv1beta "git.blendlabs.com/blend/protos/log/v1beta"
 	exception "github.com/blendlabs/go-exception"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -95,6 +96,16 @@ func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
 	return c.send(ctx, messages)
 }
 
+// SendBeta sends a message.
+func (c *Client) SendBeta(ctx context.Context, message logv1beta.Message) error {
+	return c.sendBeta(ctx, []logv1beta.Message{message})
+}
+
+// SendManyBeta sends a group of messages.
+func (c *Client) SendManyBeta(ctx context.Context, messages []logv1beta.Message) error {
+	return c.sendBeta(ctx, messages)
+}
+
 // send sends a batch of messages.
 func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error) {
 	stream, openStreamErr := c.grpcSender.Push(ctx)
@@ -121,20 +132,46 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 	return
 }
 
-func (c *Client) injectDefaultLabels(msg *logv1.Message) {
-	if msg.Meta.Labels == nil {
-		msg.Meta.Labels = map[string]string{}
+// send sends a batch of messages.
+func (c *Client) sendBeta(ctx context.Context, messages []logv1beta.Message) (err error) {
+	stream, openStreamErr := c.grpcSender.PushV1Beta(ctx)
+	if openStreamErr != nil {
+		err = exception.Wrap(openStreamErr)
+		return
+	}
+
+	var streamErr error
+	for _, msg := range messages {
+		c.injectDefaultLabels(&msg)
+		streamErr = stream.Send(&msg)
+		if streamErr != nil {
+			err = exception.Wrap(streamErr)
+			return
+		}
+	}
+
+	_, closeErr := stream.CloseAndRecv()
+	if closeErr != nil {
+		err = exception.Wrap(closeErr)
+		return
+	}
+	return
+}
+
+func (c *Client) injectDefaultLabels(msg MetaProvider) {
+	if msg.GetMeta().Labels == nil {
+		msg.GetMeta().Labels = map[string]string{}
 	}
 	for key, value := range c.defaultLabels {
-		msg.Meta.Labels[key] = value
+		msg.GetMeta().Labels[key] = value
 	}
 }
 
-func (c *Client) injectDefaultAnnoations(msg *logv1.Message) {
-	if msg.Meta.Annotations == nil {
-		msg.Meta.Annotations = map[string]string{}
+func (c *Client) injectDefaultAnnoations(msg MetaProvider) {
+	if msg.GetMeta().Annotations == nil {
+		msg.GetMeta().Annotations = map[string]string{}
 	}
 	for key, value := range c.defaultAnnotations {
-		msg.Meta.Annotations[key] = value
+		msg.GetMeta().Annotations[key] = value
 	}
 }

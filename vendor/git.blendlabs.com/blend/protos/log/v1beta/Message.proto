@@ -1,0 +1,26 @@
+// [START declaration]
+syntax = "proto3";
+package logv1beta;
+import "log/v1/Meta.proto";
+import "log/v1beta/SmokeSignalResult.proto";
+// [END declaration]
+
+// [START go_declaration]
+option go_package = "git.blendlabs.com/blend/protos/log/v1beta";
+// [END go_declaration]
+
+enum MessageType {
+  SMOKE_SIGNAL = 0;
+}
+ 
+// [START messages]
+message Message {
+    // type is the type of the object
+    // it is used principally in routing to processors.
+    MessageType type = 1;
+    // meta contains extra metadata for the message like timestamp.
+    logv1.Meta meta = 2;
+
+    logv1beta.SmokeSignalResult smokeSignalResult = 200; // 100 + message type
+} 
+// [END messages]
