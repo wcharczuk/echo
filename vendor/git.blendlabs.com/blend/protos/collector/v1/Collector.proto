@@ -1,6 +1,8 @@
 // [START declaration]
 syntax = "proto3";
 import "log/v1/Message.proto";
+import "log/v1beta/Message.proto";
+import "log/experimental/Message.proto";
 import "google/protobuf/Duration.proto";
 package collectorv1;
 // [END declaration]
@@ -12,6 +14,8 @@ option go_package = "git.blendlabs.com/blend/protos/collector/v1";
 service Collector {
     // Receive takes a stream of messages.
     rpc Push(stream logv1.Message) returns (ReceiveSummary) {};
+    rpc PushV1Beta(stream logv1beta.Message) returns (ReceiveSummary) {};
+    rpc PushExperimental(stream experimental.Message) returns (ReceiveSummary) {};
 }
 
 // ReceiveSummary is a digest of messages processed.
