@@ -6,10 +6,25 @@ const (
 	// PackageName is the full name of this package.
 	PackageName = "github.com/blendlabs/go-web"
 
+	// HeaderAllow is a common header.
+	HeaderAllow = "Allow"
+
+	// RouteTokenFilepath is a special route token.
+	RouteTokenFilepath = "filepath"
+
+	// RegexpAssetCacheFiles is a common regex for parsing css, js, and html file routes.
+	RegexpAssetCacheFiles = `^(.*)\.([0-9]+)\.(css|js|html|htm)$`
+
 	// HeaderAcceptEncoding is the "Accept-Encoding" header.
 	// It indicates what types of encodings the request will accept responses as.
 	// It typically enables or disables compressed (gzipped) responses.
 	HeaderAcceptEncoding = "Accept-Encoding"
+
+	// HeaderSetCookie is the header that sets cookies in a response.
+	HeaderSetCookie = "Set-Cookie"
+
+	// HeaderCookie is the request cookie header.
+	HeaderCookie = "Cookie"
 
 	// HeaderDate is the "Date" header.
 	// It provides a timestamp the response was generated at.
@@ -65,6 +80,9 @@ const (
 	// HeaderXContentTypeOptions is the "X-Content-Type-Options" header.
 	HeaderXContentTypeOptions = "X-Content-Type-Options"
 
+	// HeaderStrictTransportSecurity is the hsts header.
+	HeaderStrictTransportSecurity = "Strict-Transport-Security"
+
 	// ContentTypeApplicationJSON is a content type for JSON responses.
 	// We specify chartset=utf-8 so that clients know to use the UTF-8 string encoding.
 	ContentTypeApplicationJSON = "application/json; charset=UTF-8"
@@ -92,13 +110,67 @@ const (
 	ContentEncodingGZIP = "gzip"
 )
 
+const (
+	// SchemeHTTP is a protocol scheme.
+	SchemeHTTP = "http"
+
+	// SchemeHTTPS is a protocol scheme.
+	SchemeHTTPS = "https"
+
+	// SchemeSPDY is a protocol scheme.
+	SchemeSPDY = "spdy"
+)
+
+const (
+	// MethodGet is an http verb.
+	MethodGet = "GET"
+
+	// MethodPost is an http verb.
+	MethodPost = "POST"
+
+	// MethodPut is an http verb.
+	MethodPut = "PUT"
+
+	// MethodDelete is an http verb.
+	MethodDelete = "DELETE"
+
+	// MethodConnect is an http verb.
+	MethodConnect = "CONNECT"
+
+	// MethodOptions is an http verb.
+	MethodOptions = "OPTIONS"
+)
+
+const (
+	// HSTSMaxAgeFormat is the format string for a max age token.
+	HSTSMaxAgeFormat = "max-age=%d"
+
+	// HSTSIncludeSubDomains is a header value token.
+	HSTSIncludeSubDomains = "includeSubDomains"
+
+	// HSTSPreload is a header value token.
+	HSTSPreload = "preload"
+)
+
 // Environment Variables
 const (
 	// EnvironmentVariableBindAddr is an env var that determines (if set) what the bind address should be.
 	EnvironmentVariableBindAddr = "BIND_ADDR"
 
+	// EnvironmentVariableHealthzBindAddr is an env var that determines (if set) what the healthz sidecar bind address should be.
+	EnvironmentVariableHealthzBindAddr = "HEALTHZ_BIND_ADDR"
+
+	// EnvironmentVariableUpgraderBindAddr is an env var that determines (if set) what the bind address should be.
+	EnvironmentVariableUpgraderBindAddr = "UPGRADER_BIND_ADDR"
+
 	// EnvironmentVariablePort is an env var that determines what the default bind address port segment returns.
 	EnvironmentVariablePort = "PORT"
+
+	// EnvironmentVariableHealthzPort is an env var that determines what the default healthz bind address port segment returns.
+	EnvironmentVariableHealthzPort = "HEALTHZ_PORT"
+
+	// EnvironmentVariableUpgraderPort is an env var that determines what the default bind address port segment returns.
+	EnvironmentVariableUpgraderPort = "UPGRADER_PORT"
 
 	// EnvironmentVariableTLSCert is an env var that contains the TLS cert.
 	EnvironmentVariableTLSCert = "TLS_CERT"
@@ -117,6 +189,8 @@ const (
 const (
 	// DefaultBindAddr is the default bind address.
 	DefaultBindAddr = ":8080"
+	// DefaultHealthzBindAddr is the default healthz bind address.
+	DefaultHealthzBindAddr = ":8081"
 	// DefaultRedirectTrailingSlash is the default if we should redirect for missing trailing slashes.
 	DefaultRedirectTrailingSlash = true
 	// DefaultHandleOptions is a default.
@@ -125,6 +199,15 @@ const (
 	DefaultHandleMethodNotAllowed = false
 	// DefaultRecoverPanics returns if we should recover panics by default.
 	DefaultRecoverPanics = true
+
+	// DefaultHSTS is the default for if hsts is enabled.
+	DefaultHSTS = true
+	// DefaultHSTSMaxAgeSeconds is the default hsts max age seconds.
+	DefaultHSTSMaxAgeSeconds = 31536000
+	// DefaultHSTSIncludeSubdomains is a default.
+	DefaultHSTSIncludeSubdomains = true
+	// DefaultHSTSPreload is a default.
+	DefaultHSTSPreload = true
 	// DefaultMaxHeaderBytes is a default that is unset.
 	DefaultMaxHeaderBytes = 0
 	// DefaultReadTimeout is a default.
@@ -135,14 +218,10 @@ const (
 	DefaultWriteTimeout time.Duration = 0
 	// DefaultIdleTimeout is a default.
 	DefaultIdleTimeout time.Duration = 0
-	// DefaultCookieHTTPS is a default.
-	DefaultCookieHTTPS = false
 	// DefaultCookieName is the default name of the field that contains the session id.
 	DefaultCookieName = "SID"
 	// DefaultSecureCookieName is the default name of the field that contains the secure session id.
 	DefaultSecureCookieName = "SSID"
-	// DefaultSecureCookieHTTPS is a default.
-	DefaultSecureCookieHTTPS = false
 	// DefaultCookiePath is the default cookie path.
 	DefaultCookiePath = "/"
 	// DefaultSessionTimeout is the default absolute timeout for a session (here implying we should use session lived sessions).
@@ -152,3 +231,58 @@ const (
 	// DefaultSessionTimeoutIsAbsolute is the default if we should set absolute session expiries.
 	DefaultSessionTimeoutIsAbsolute = true
 )
+
+// DefaultHeaders are the default headers added by go-web.
+var DefaultHeaders = map[string]string{
+	HeaderServer:    PackageName,
+	HeaderXServedBy: PackageName,
+}
+
+// SessionLockPolicy is a lock policy.
+type SessionLockPolicy int
+
+const (
+	// SessionUnsafe is a lock-free session policy.
+	SessionUnsafe SessionLockPolicy = 0
+
+	// SessionReadLock is a lock policy that acquires a read lock on session.
+	SessionReadLock SessionLockPolicy = 1
+
+	// SessionReadWriteLock is a lock policy that acquires both a read and a write lock on session.
+	SessionReadWriteLock SessionLockPolicy = 2
+)
+
+const (
+	// LenSessionID is the byte length of a session id.
+	LenSessionID = 64
+	// LenSessionIDBase64 is the length of a session id base64 encoded.
+	LenSessionIDBase64 = 88
+	// ErrSessionIDEmpty is thrown if a session id is empty.
+	ErrSessionIDEmpty = Error("auth session id is empty")
+	// ErrSessionIDTooLong is thrown if a session id is too long.
+	ErrSessionIDTooLong = Error("auth session id is too long")
+
+	// ErrSecureSessionIDEmpty is an error that is thrown if a given secure session id is invalid.
+	ErrSecureSessionIDEmpty = Error("auth secure session id is empty")
+	// ErrSecureSessionIDTooLong is an error that is thrown if a given secure session id is invalid.
+	ErrSecureSessionIDTooLong = Error("auth secure session id is too long")
+	// ErrSecureSessionIDInvalid is an error that is thrown if a given secure session id is invalid.
+	ErrSecureSessionIDInvalid = Error("auth secure session id is invalid")
+)
+
+// IsErrSessionInvalid returns if an error is a session invalid error.
+func IsErrSessionInvalid(err error) bool {
+	if err == nil {
+		return false
+	}
+	switch err {
+	case ErrSessionIDEmpty,
+		ErrSessionIDTooLong,
+		ErrSecureSessionIDEmpty,
+		ErrSecureSessionIDTooLong,
+		ErrSecureSessionIDInvalid:
+		return true
+	default:
+		return false
+	}
+}

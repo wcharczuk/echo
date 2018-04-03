@@ -22,7 +22,7 @@ func main() {
 		return r.Text().Result("echo")
 	})
 	app.GET("/headers", func(r *web.Ctx) web.Result {
-		contents, err := json.Marshal(r.Request.Header)
+		contents, err := json.Marshal(r.Request().Header)
 		if err != nil {
 			return r.View().InternalError(err)
 		}
@@ -55,7 +55,7 @@ func main() {
 			select {
 			case <-ticker.C:
 				{
-					fmt.Fprintf(r.Response, "tick\n")
+					fmt.Fprintf(r.Response(), "tick\n")
 				}
 			case <-timeout:
 				{
@@ -65,7 +65,7 @@ func main() {
 		}
 	})
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
-		body := r.Request.URL.Path
+		body := r.Request().URL.Path
 		if len(body) == 0 {
 			return r.RawWithContentType(web.ContentTypeText, []byte("no response."))
 		}

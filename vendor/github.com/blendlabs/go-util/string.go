@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -250,15 +251,14 @@ func (su stringUtil) CombinePathComponents(components ...string) string {
 	return fullPath
 }
 
+// Random returns a new random string composed of letters from the `letters` collection.
+func (su stringUtil) Random(length int) string {
+	return su.RandomLetters(length)
+}
+
 // RandomLetters returns a new random string composed of letters from the `letters` collection.
 func (su stringUtil) RandomLetters(length int) string {
 	return su.RandomRunes(Letters, length)
-}
-
-// RandomString returns a new random string composed of letters from the `letters` collection.
-// Deprecation Notice: this is going away soonish, use `RandomLetters(length)` instead.
-func (su stringUtil) RandomString(length int) string {
-	return su.RandomLetters(length)
 }
 
 // RandomNumbers returns a random string of chars from the `numbers` collection.
@@ -336,18 +336,18 @@ func (su stringUtil) RegexExtractSubMatches(corpus, expr string) []string {
 	return results
 }
 
-// Int turns an int into a string
-func (su stringUtil) Int(input int) string {
+// FromInt turns an int into a string
+func (su stringUtil) FromInt(input int) string {
 	return strconv.Itoa(input)
 }
 
-// Int64 turns an int64 into a string
-func (su stringUtil) Int64(input int64) string {
+// FromInt64 turns an int64 into a string
+func (su stringUtil) FromInt64(input int64) string {
 	return strconv.FormatInt(input, 10)
 }
 
-// Float64 turns an float64 into a string
-func (su stringUtil) Float64(input float64) string {
+// FromFloat64 turns an float64 into a string
+func (su stringUtil) FromFloat64(input float64) string {
 	return strconv.FormatFloat(input, 'f', -1, 64)
 }
 
@@ -585,4 +585,18 @@ func (su stringUtil) Tokenize(corpus string, tokens map[string]string) string {
 	}
 
 	return output.String()
+}
+
+// SecureRandom generates a secure random string of bytes base64 encoded.
+func (su stringUtil) SecureRandom(length int) (string, error) {
+	b, err := Crypto.SecureRandomBytes(length)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// MustSecureRandom generates a secure random string of bytes base64 encoded.
+func (su stringUtil) MustSecureRandom(length int) string {
+	return base64.URLEncoding.EncodeToString(Crypto.MustSecureRandomBytes(length))
 }
