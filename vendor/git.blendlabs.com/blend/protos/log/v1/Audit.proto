@@ -9,17 +9,17 @@ option go_package = "git.blendlabs.com/blend/protos/log/v1";
 
 // [START messages]
 message Audit {
-  // princial is typically the entity performing the action
-  string principal = 1;
+  // principal is the thing doing the action.
+  string principal = 10;
   // verb is the action, i.e. create, update, delete etc.
-  string verb = 2;
+  string verb = 11;
   // noun is the type of object being modified, i.e. user
-  string noun = 3;
+  string noun = 12;
   // subject is the specific instance of the noun
-  string subject = 4;
+  string subject = 13;
   // property is an extra differentiating identifier in case you need it
-  string property = 5;
+  string property = 14;
   // extra is here in case you need to add more information
-  map<string,string> extra = 6;
+  map<string,string> extra = 15;
 } 
 // [END messages]

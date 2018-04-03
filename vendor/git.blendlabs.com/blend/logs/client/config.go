@@ -15,7 +15,9 @@ const (
 // NewConfigFromEnv returns a new config from the environment.
 func NewConfigFromEnv() *Config {
 	var cfg Config
-	env.Env().ReadInto(&cfg)
+	if err := env.Env().ReadInto(&cfg); err != nil {
+		panic(err)
+	}
 	return &cfg
 }
 

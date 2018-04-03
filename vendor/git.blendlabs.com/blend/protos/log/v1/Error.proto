@@ -10,9 +10,15 @@ option go_package = "git.blendlabs.com/blend/protos/log/v1";
 
 // [START messages]
 message Error {
-  string class = 1;
-  string message = 2;
-  repeated string stack = 3;
-  Error inner = 4;
+  // severity is the meta class of the error, i.e. warning, error, fatal etc.
+  string severity = 10;
+  // class is the exception type or grouping value.
+  string class = 11;
+  // message is a descriptive or variable context of an error.
+  string message = 12;
+  // stack is the call stack where the error was generated.
+  repeated string stack = 13;
+  // inner is a cause or underlying error
+  Error inner = 14;
 } 
 // [END messages]

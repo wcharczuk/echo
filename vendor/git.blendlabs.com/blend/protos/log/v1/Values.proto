@@ -9,7 +9,7 @@ option go_package = "git.blendlabs.com/blend/protos/log/v1";
 
 // [START messages]
 message Values {
-  // body of the message
-  map<string, string> values = 1;
+  // values is a bag of key/value strings.
+  map<string, string> values = 10;
 } 
 // [END messages]

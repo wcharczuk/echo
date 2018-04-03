@@ -10,13 +10,15 @@ option go_package = "git.blendlabs.com/blend/protos/log/v1";
 
 // [START messages]
 message Meta {
+  // type is a descriptive message type.
+  string type = 1;
   // Timestamp of the message
-  google.protobuf.Timestamp timestamp = 1;
+  google.protobuf.Timestamp timestamp = 2;
   // uid
-  string uid = 2; 
+  string uid = 3; 
   // labels can include hostname, etc.
-  map<string, string> labels = 3;
+  map<string, string> labels = 4;
   // annotations are things you can't filter by, and can be longer
-  map<string, string> annotations = 4;
+  map<string, string> annotations = 5;
 }
 // [END messages]

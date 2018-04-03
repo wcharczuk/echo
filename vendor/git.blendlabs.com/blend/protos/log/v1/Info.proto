@@ -9,7 +9,9 @@ option go_package = "git.blendlabs.com/blend/protos/log/v1";
 
 // [START messages]
 message Info {
-  string flag = 1;
-  string message = 2;
+  // label is a descriptive label for the message.
+  string label = 10;
+  // message is the contents of the message.
+  string message = 11;
 } 
 // [END messages]

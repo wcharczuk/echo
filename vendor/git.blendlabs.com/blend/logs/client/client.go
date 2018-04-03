@@ -8,8 +8,9 @@ import (
 
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
-	logv1beta "git.blendlabs.com/blend/protos/log/v1beta"
 	exception "github.com/blendlabs/go-exception"
+	"github.com/blendlabs/go-util/uuid"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -87,27 +88,17 @@ func (c *Client) WithDefaultAnnotation(key, value string) *Client {
 }
 
 // Send sends a message.
-func (c *Client) Send(ctx context.Context, message logv1.Message) error {
-	return c.send(ctx, []logv1.Message{message})
+func (c *Client) Send(ctx context.Context, message proto.Message) error {
+	return c.send(ctx, []proto.Message{message})
 }
 
 // SendMany sends a group of messages.
-func (c *Client) SendMany(ctx context.Context, messages []logv1.Message) error {
+func (c *Client) SendMany(ctx context.Context, messages []proto.Message) error {
 	return c.send(ctx, messages)
 }
 
-// SendBeta sends a message.
-func (c *Client) SendBeta(ctx context.Context, message logv1beta.Message) error {
-	return c.sendBeta(ctx, []logv1beta.Message{message})
-}
-
-// SendManyBeta sends a group of messages.
-func (c *Client) SendManyBeta(ctx context.Context, messages []logv1beta.Message) error {
-	return c.sendBeta(ctx, messages)
-}
-
 // send sends a batch of messages.
-func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error) {
+func (c *Client) send(ctx context.Context, messages []proto.Message) (err error) {
 	stream, openStreamErr := c.grpcSender.Push(ctx)
 	if openStreamErr != nil {
 		err = exception.Wrap(openStreamErr)
@@ -115,9 +106,17 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 	}
 
 	var streamErr error
+	var marshalErr error
 	for _, msg := range messages {
-		c.injectDefaultLabels(&msg)
-		streamErr = stream.Send(&msg)
+		meta := c.newMessageMeta(msg)
+		meta.Body, marshalErr = proto.Marshal(msg)
+		if marshalErr != nil {
+			err = exception.Wrap(marshalErr)
+			return
+		}
+		c.injectDefaultLabels(meta)
+		c.injectDefaultAnnoations(meta)
+		streamErr = stream.Send(meta)
 		if streamErr != nil {
 			err = exception.Wrap(streamErr)
 			return
@@ -132,33 +131,17 @@ func (c *Client) send(ctx context.Context, messages []logv1.Message) (err error)
 	return
 }
 
-// send sends a batch of messages.
-func (c *Client) sendBeta(ctx context.Context, messages []logv1beta.Message) (err error) {
-	stream, openStreamErr := c.grpcSender.PushV1Beta(ctx)
-	if openStreamErr != nil {
-		err = exception.Wrap(openStreamErr)
-		return
+func (c *Client) newMessageMeta(msg proto.Message) *logv1.Message {
+	return &logv1.Message{
+		Meta: &logv1.Meta{
+			Timestamp: MarshalTimestamp(time.Now().UTC()),
+			Uid:       uuid.V4().String(),
+			Type:      proto.MessageName(msg),
+		},
 	}
-
-	var streamErr error
-	for _, msg := range messages {
-		c.injectDefaultLabels(&msg)
-		streamErr = stream.Send(&msg)
-		if streamErr != nil {
-			err = exception.Wrap(streamErr)
-			return
-		}
-	}
-
-	_, closeErr := stream.CloseAndRecv()
-	if closeErr != nil {
-		err = exception.Wrap(closeErr)
-		return
-	}
-	return
 }
 
-func (c *Client) injectDefaultLabels(msg MetaProvider) {
+func (c *Client) injectDefaultLabels(msg *logv1.Message) {
 	if msg.GetMeta().Labels == nil {
 		msg.GetMeta().Labels = map[string]string{}
 	}
@@ -167,7 +150,7 @@ func (c *Client) injectDefaultLabels(msg MetaProvider) {
 	}
 }
 
-func (c *Client) injectDefaultAnnoations(msg MetaProvider) {
+func (c *Client) injectDefaultAnnoations(msg *logv1.Message) {
 	if msg.GetMeta().Annotations == nil {
 		msg.GetMeta().Annotations = map[string]string{}
 	}

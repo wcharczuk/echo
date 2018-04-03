@@ -20,8 +20,8 @@ enum SyslogSeverity {
 
 // [START messages]
 message Syslog {
-    SyslogSeverity severity  = 2;
-    string facility  = 1;
-    string  message = 3;
+    SyslogSeverity severity  = 10;
+    string facility  = 11;
+    string  message = 12;
 }
 // [END messages]

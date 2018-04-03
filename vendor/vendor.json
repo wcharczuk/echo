@@ -3,37 +3,24 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "jCCU0iUiQW1an2i2MZ2AsXDTFFo=",
+			"checksumSHA1": "UWoHX39Dac7D7+rECszTAKGrp5Q=",
 			"path": "git.blendlabs.com/blend/logs/client",
-			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
-			"revisionTime": "2018-03-28T00:45:04Z"
+			"revision": "c0857f1005c2cfa2d8bfdbb99f39f7127fa1aac9",
+			"revisionTime": "2018-04-03T03:26:24Z"
 		},
 		{
-			"checksumSHA1": "BRG5T6ZVxXJ414Uo6Kzo8h8xcN4=",
+			"checksumSHA1": "n2+STexXWBjbo5SQIwWczpxftJU=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/git.blendlabs.com/blend/protos/collector/v1",
 			"path": "git.blendlabs.com/blend/protos/collector/v1",
-			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
-			"revisionTime": "2018-03-28T00:45:04Z"
+			"revision": "c0857f1005c2cfa2d8bfdbb99f39f7127fa1aac9",
+			"revisionTime": "2018-04-03T03:26:24Z"
 		},
 		{
-			"checksumSHA1": "3PpPvZd92WIe/EnKDU+FXIlcLwc=",
+			"checksumSHA1": "DQaifK1VBWdXFlDxTDjxtPVbrYA=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/git.blendlabs.com/blend/protos/log/v1",
 			"path": "git.blendlabs.com/blend/protos/log/v1",
-			"revision": "c1fe9e23e8c7b99864e5b6c644160b3c1c558b59",
-			"revisionTime": "2018-03-28T00:45:04Z"
-		},
-		{
-			"checksumSHA1": "CwWK6SPtW2cNpm5yPuMqDtV80hA=",
-			"path": "git.blendlabs.com/blend/protos/log/v1beta",
-			"revision": "a53970c1890e30e7dc3136bd2d76f4454b80fe25",
-			"revisionTime": "2018-03-27T22:35:48Z"
-		},
-		{
-			"checksumSHA1": "DZLg0C8h3jeutRpuzsbvQJRR9l0=",
-			"origin": "git.blendlabs.com/blend/logs/vendor/git.blendlabs.com/blend/protos/smoke-signal/v1",
-			"path": "git.blendlabs.com/blend/protos/smoke-signal/v1",
-			"revision": "a65699b2270e3051921b8a5c17c3a5218cd57227",
-			"revisionTime": "2018-03-09T22:55:10Z"
+			"revision": "c0857f1005c2cfa2d8bfdbb99f39f7127fa1aac9",
+			"revisionTime": "2018-04-03T03:26:24Z"
 		},
 		{
 			"checksumSHA1": "mqiKPQpoqlflDV9gjprwfQZGkmY=",
