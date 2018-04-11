@@ -23,12 +23,6 @@
 			"revisionTime": "2018-04-10T22:30:30Z"
 		},
 		{
-			"checksumSHA1": "r4B2w/OVJ9uILfwSR0X7Ylb6Uf4=",
-			"path": "github.com/blendlabs/go-util",
-			"revision": "e6554396eb8f2fc4458d3dbd6151a3eb0e3e7460",
-			"revisionTime": "2018-03-27T22:34:37Z"
-		},
-		{
 			"checksumSHA1": "lDuJ5BMeDIH/C4nH8YPPqbyB3sk=",
 			"path": "github.com/blendlabs/go-util/uuid",
 			"revision": "77faf37ab670ceda5043240de613263ef3140b8b",
