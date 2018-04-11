@@ -19,7 +19,11 @@ message Audit {
   string subject = 13;
   // property is an extra differentiating identifier in case you need it
   string property = 14;
+  // remoteAddr is a pseudo-identification field.
+  string remoteAddr = 15;
+  // userAgent is a pseudo-identification field. 
+  string userAgent = 16;
   // extra is here in case you need to add more information
-  map<string,string> extra = 15;
+  map<string,string> extra = 20;
 } 
 // [END messages]

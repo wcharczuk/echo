@@ -3,13 +3,13 @@ package client
 import (
 	"strings"
 
-	util "github.com/blendlabs/go-util"
-	"github.com/blendlabs/go-util/env"
+	"github.com/blend/go-sdk/env"
+	"github.com/blend/go-sdk/util"
 )
 
 const (
 	// DefaultAddr is the default client addr.
-	DefaultAddr = "unix:////var/run/log-collector/collector.sock"
+	DefaultAddr = "unix:///var/run/log-collector/collector.sock"
 )
 
 // NewConfigFromEnv returns a new config from the environment.
@@ -23,10 +23,10 @@ func NewConfigFromEnv() *Config {
 
 // Config is the client config.
 type Config struct {
-	CollectorAddr       string `json:"collectorAddr" yaml:"collectorAddr" env:"LOG_CLIENT_ADDR"`
-	CollectorServerName string `json:"collectorServerName" yaml:"collectorServerName" env:"LOG_CLIENT_SERVER_NAME"`
-	UseTLS              *bool  `json:"useTLS" yaml:"useTLS" env:"LOG_CLIENT_USE_TLS"`
-	CAFile              string `json:"caFile" yaml:"caFile" env:"LOG_CLIENT_TLS_CA_FILE"`
+	Addr       string `json:"addr" yaml:"addr" env:"LOGS_ADDR"`
+	ServerName string `json:"serverName" yaml:"serverName" env:"LOGS_SERVER_NAME"`
+	UseTLS     *bool  `json:"useTLS" yaml:"useTLS" env:"LOGS_USE_TLS"`
+	CAFile     string `json:"caFile" yaml:"caFile" env:"LOGS_TLS_CA_FILE"`
 
 	ServiceName string `json:"serviceName" yaml:"serviceName" env:"SERVICE_NAME"`
 	Hostname    string `json:"hostname" yaml:"hostname" env:"HOSTNAME"`
@@ -34,22 +34,22 @@ type Config struct {
 	DefaultLabels map[string]string `json:"defaultLabels" yaml:"defaultLabels"`
 }
 
-// GetCollectorUnixSocketPath gets the unix socket path.
-func (c Config) GetCollectorUnixSocketPath() string {
-	if strings.HasPrefix(c.GetCollectorAddr(), "unix://") {
-		return strings.TrimPrefix(c.GetCollectorAddr(), "unix://")
+// GetUnixSocketPath gets the unix socket path.
+func (c Config) GetUnixSocketPath() string {
+	if strings.HasPrefix(c.GetAddr(), "unix://") {
+		return strings.TrimPrefix(c.GetAddr(), "unix://")
 	}
 	return ""
 }
 
-// GetCollectorAddr gets an addr or a default.
-func (c Config) GetCollectorAddr(inherited ...string) string {
-	return util.Coalesce.String(c.CollectorAddr, DefaultAddr, inherited...)
+// GetAddr gets an addr or a default.
+func (c Config) GetAddr(inherited ...string) string {
+	return util.Coalesce.String(c.Addr, DefaultAddr, inherited...)
 }
 
-// GetCollectorServerName gets an addr or a default.
-func (c Config) GetCollectorServerName(inherited ...string) string {
-	return util.Coalesce.String(c.CollectorServerName, DefaultAddr, inherited...)
+// GetServerName gets an addr or a default.
+func (c Config) GetServerName(inherited ...string) string {
+	return util.Coalesce.String(c.ServerName, "", inherited...)
 }
 
 // GetUseTLS sets the client to use tls.
