@@ -83,12 +83,6 @@
 			"revisionTime": "2018-03-09T19:27:40Z"
 		},
 		{
-			"checksumSHA1": "yTMmOG+NmFZ/gPV8WnJN5St2Nd8=",
-			"path": "github.com/blendlabs/go-web",
-			"revision": "130c3c093c02841ad44e20bf1283aed8a25a6f90",
-			"revisionTime": "2018-04-03T02:07:51Z"
-		},
-		{
 			"checksumSHA1": "WX1+2gktHcBmE9MGwFSGs7oqexU=",
 			"origin": "git.blendlabs.com/blend/logs/vendor/github.com/golang/protobuf/proto",
 			"path": "github.com/golang/protobuf/proto",

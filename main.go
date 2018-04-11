@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"git.blendlabs.com/blend/logs/client"
+	"github.com/blend/go-sdk/logger"
+	"github.com/blend/go-sdk/web"
 	exception "github.com/blendlabs/go-exception"
-	logger "github.com/blendlabs/go-logger"
 	"github.com/blendlabs/go-util/env"
 	web "github.com/blendlabs/go-web"
 )
