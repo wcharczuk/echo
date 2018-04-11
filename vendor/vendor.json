@@ -59,12 +59,6 @@
 			"revisionTime": "2018-03-27T22:34:37Z"
 		},
 		{
-			"checksumSHA1": "lLDcwECo04mpc6rQp73H7yEA/c8=",
-			"path": "github.com/blendlabs/go-util/env",
-			"revision": "77faf37ab670ceda5043240de613263ef3140b8b",
-			"revisionTime": "2018-03-09T19:27:40Z"
-		},
-		{
 			"checksumSHA1": "lDuJ5BMeDIH/C4nH8YPPqbyB3sk=",
 			"path": "github.com/blendlabs/go-util/uuid",
 			"revision": "77faf37ab670ceda5043240de613263ef3140b8b",

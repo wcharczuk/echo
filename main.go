@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"git.blendlabs.com/blend/logs/client"
+	"github.com/blend/go-sdk/env"
 	"github.com/blend/go-sdk/exception"
 	"github.com/blend/go-sdk/logger"
 	"github.com/blend/go-sdk/web"
-	"github.com/blendlabs/go-util/env"
 )
 
 func main() {
