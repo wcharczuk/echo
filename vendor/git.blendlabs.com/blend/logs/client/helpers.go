@@ -4,9 +4,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/blend/go-sdk/exception"
+	"github.com/blend/go-sdk/logger"
+
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
-	"github.com/blendlabs/go-exception"
-	logger "github.com/blendlabs/go-logger"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -14,7 +15,7 @@ import (
 
 // HasCollectorUnixSocket returns if the unix socket is present for a given config.
 func HasCollectorUnixSocket(cfg *Config) bool {
-	socketPath := cfg.GetCollectorUnixSocketPath()
+	socketPath := cfg.GetUnixSocketPath()
 	if len(socketPath) == 0 {
 		return false
 	}
@@ -101,7 +102,7 @@ func NewQueryEvent(e *logger.QueryEvent) *logv1.Query {
 	return &logv1.Query{
 		Engine:   e.Engine(),
 		Database: e.Database(),
-		Label:    e.Label(),
+		Label:    e.QueryLabel(),
 		Body:     e.Body(),
 		Elapsed:  MarshalDuration(e.Elapsed()),
 	}

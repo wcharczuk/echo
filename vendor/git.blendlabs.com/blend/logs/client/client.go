@@ -6,10 +6,13 @@ import (
 	"strings"
 	"time"
 
+	// go-sdk
+	"github.com/blend/go-sdk/exception"
+	"github.com/blend/go-sdk/uuid"
+
 	collectorv1 "git.blendlabs.com/blend/protos/collector/v1"
 	logv1 "git.blendlabs.com/blend/protos/log/v1"
-	exception "github.com/blendlabs/go-exception"
-	"github.com/blendlabs/go-util/uuid"
+
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -20,7 +23,7 @@ func New(cfg *Config) (*Client, error) {
 	var opts []grpc.DialOption
 	var err error
 
-	addr := cfg.GetCollectorAddr()
+	addr := cfg.GetAddr()
 	if strings.HasPrefix(addr, "unix://") {
 		opts = append(opts,
 			grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
@@ -32,12 +35,12 @@ func New(cfg *Config) (*Client, error) {
 	if cfg.GetUseTLS() {
 		var creds credentials.TransportCredentials
 		if len(cfg.GetCAFile()) > 0 {
-			creds, err = credentials.NewClientTLSFromFile(cfg.GetCAFile(), cfg.GetCollectorServerName())
+			creds, err = credentials.NewClientTLSFromFile(cfg.GetCAFile(), cfg.GetServerName())
 			if err != nil {
 				return nil, exception.Wrap(err)
 			}
 		} else {
-			creds = credentials.NewClientTLSFromCert(nil, cfg.GetCollectorServerName())
+			creds = credentials.NewClientTLSFromCert(nil, cfg.GetServerName())
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
@@ -88,35 +91,33 @@ func (c *Client) WithDefaultAnnotation(key, value string) *Client {
 }
 
 // Send sends a message.
-func (c *Client) Send(ctx context.Context, message proto.Message) error {
-	return c.send(ctx, []proto.Message{message})
+func (c *Client) Send(ctx context.Context, message proto.Message, optionalMeta ...*Meta) (err error) {
+	msg, processErr := c.processMessage(message, 0, optionalMeta...)
+	if processErr != nil {
+		err = exception.Wrap(processErr)
+		return
+	}
+
+	_, err = c.grpcSender.Send(ctx, msg)
+	return
 }
 
-// SendMany sends a group of messages.
-func (c *Client) SendMany(ctx context.Context, messages []proto.Message) error {
-	return c.send(ctx, messages)
-}
-
-// send sends a batch of messages.
-func (c *Client) send(ctx context.Context, messages []proto.Message) (err error) {
-	stream, openStreamErr := c.grpcSender.Push(ctx)
+// SendMany sends a list of messages.
+func (c *Client) SendMany(ctx context.Context, messages []proto.Message, optionalMetas ...*Meta) (err error) {
+	stream, openStreamErr := c.grpcSender.SendMany(ctx)
 	if openStreamErr != nil {
 		err = exception.Wrap(openStreamErr)
 		return
 	}
 
 	var streamErr error
-	var marshalErr error
-	for _, msg := range messages {
-		meta := c.newMessageMeta(msg)
-		meta.Body, marshalErr = proto.Marshal(msg)
-		if marshalErr != nil {
-			err = exception.Wrap(marshalErr)
+	for index, msgContents := range messages {
+		msg, processErr := c.processMessage(msgContents, index, optionalMetas...)
+		if processErr != nil {
+			err = exception.Wrap(streamErr)
 			return
 		}
-		c.injectDefaultLabels(meta)
-		c.injectDefaultAnnoations(meta)
-		streamErr = stream.Send(meta)
+		streamErr = stream.Send(msg)
 		if streamErr != nil {
 			err = exception.Wrap(streamErr)
 			return
@@ -131,7 +132,21 @@ func (c *Client) send(ctx context.Context, messages []proto.Message) (err error)
 	return
 }
 
-func (c *Client) newMessageMeta(msg proto.Message) *logv1.Message {
+func (c *Client) processMessage(msgContents proto.Message, index int, optionalMetas ...*Meta) (msg *logv1.Message, err error) {
+	msg = c.newMessage(msgContents)
+	var marshalErr error
+	msg.Body, marshalErr = proto.Marshal(msgContents)
+	if marshalErr != nil {
+		err = exception.Wrap(marshalErr)
+		return
+	}
+	c.injectDefaultLabels(msg)
+	c.injectDefaultAnnoations(msg)
+	c.injectMessageMeta(msg, c.resolveMessageMeta(index, optionalMetas))
+	return
+}
+
+func (c *Client) newMessage(msg proto.Message) *logv1.Message {
 	return &logv1.Message{
 		Meta: &logv1.Meta{
 			Timestamp: MarshalTimestamp(time.Now().UTC()),
@@ -142,19 +157,52 @@ func (c *Client) newMessageMeta(msg proto.Message) *logv1.Message {
 }
 
 func (c *Client) injectDefaultLabels(msg *logv1.Message) {
-	if msg.GetMeta().Labels == nil {
-		msg.GetMeta().Labels = map[string]string{}
+	if msg.Meta.Labels == nil {
+		msg.Meta.Labels = map[string]string{}
 	}
 	for key, value := range c.defaultLabels {
-		msg.GetMeta().Labels[key] = value
+		msg.Meta.Labels[key] = value
 	}
 }
 
 func (c *Client) injectDefaultAnnoations(msg *logv1.Message) {
-	if msg.GetMeta().Annotations == nil {
-		msg.GetMeta().Annotations = map[string]string{}
+	if msg.Meta.Annotations == nil {
+		msg.Meta.Annotations = map[string]string{}
 	}
 	for key, value := range c.defaultAnnotations {
-		msg.GetMeta().Annotations[key] = value
+		msg.Meta.Annotations[key] = value
+	}
+}
+
+func (c *Client) resolveMessageMeta(index int, metas []*Meta) *Meta {
+	if len(metas) == 0 || index < 0 {
+		return nil
+	}
+
+	var meta *Meta
+	if len(metas) == 1 {
+		meta = metas[0]
+	} else if index < len(metas) {
+		meta = metas[index]
+	}
+	return meta
+}
+
+func (c *Client) injectMessageMeta(msg *logv1.Message, meta *Meta) {
+	if meta == nil {
+		return
+	}
+
+	if msg.Meta.Labels == nil {
+		msg.Meta.Labels = map[string]string{}
+	}
+	for key, value := range meta.Labels {
+		msg.Meta.Labels[key] = value
+	}
+	if msg.Meta.Annotations == nil {
+		msg.Meta.Annotations = map[string]string{}
+	}
+	for key, value := range meta.Annotations {
+		msg.Meta.Annotations[key] = value
 	}
 }
