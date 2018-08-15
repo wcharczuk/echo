@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	cryptorand "crypto/rand"
 	"crypto/sha512"
-	"fmt"
 	"io"
 
 	"github.com/blend/go-sdk/exception"
@@ -67,16 +66,16 @@ func (cu cryptoUtil) GCMEncryptInPlace(key, plainText []byte) (*GCMEncryptionRes
 func (cu cryptoUtil) GCMEncrypt(key, plainText, dst []byte) (*GCMEncryptionResult, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	nonce := make([]byte, aead.NonceSize())
 	_, err = cryptorand.Read(nonce)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	dst = aead.Seal(dst, nonce, plainText, nil)
 	return &GCMEncryptionResult{CipherText: dst, Nonce: nonce}, nil
@@ -91,20 +90,20 @@ func (cu cryptoUtil) GCMDecryptInPlace(key []byte, gcm *GCMEncryptionResult) ([]
 func (cu cryptoUtil) GCMDecrypt(key []byte, gcm *GCMEncryptionResult, dst []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	aead, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	dst, err = aead.Open(dst, gcm.Nonce, gcm.CipherText, nil)
-	return dst, exception.Wrap(err)
+	return dst, exception.New(err)
 }
 
 // Decrypt decrypts data with the given key.
 func (cu cryptoUtil) Decrypt(key, cipherText []byte) ([]byte, error) {
 	if len(cipherText) < aes.BlockSize {
-		return nil, exception.New(fmt.Sprintf("Cannot decrypt string: `cipherText` is smaller than AES block size (%v)", aes.BlockSize))
+		return nil, exception.New("cannot decrypt string: `cipherText` is smaller than AES block size").WithMessagef("block size: %v", aes.BlockSize)
 	}
 
 	iv := cipherText[:aes.BlockSize]
@@ -132,7 +131,7 @@ func (cu cryptoUtil) SecureRandomBytes(length int) ([]byte, error) {
 	b := make([]byte, length)
 	_, err := cryptorand.Read(b)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 
 	return b, nil

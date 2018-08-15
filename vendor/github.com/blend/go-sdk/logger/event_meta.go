@@ -13,8 +13,10 @@ var (
 // NewEventMeta returns a new event meta.
 func NewEventMeta(flag Flag) *EventMeta {
 	return &EventMeta{
-		flag: flag,
-		ts:   time.Now().UTC(),
+		flag:        flag,
+		ts:          time.Now().UTC(),
+		labels:      make(Labels),
+		annotations: make(Annotations),
 	}
 }
 
@@ -54,9 +56,6 @@ func (em *EventMeta) SetTimestamp(ts time.Time) { em.ts = ts }
 
 // AddLabelValue adds a label value
 func (em *EventMeta) AddLabelValue(key, value string) {
-	if em.labels == nil {
-		em.labels = Labels{}
-	}
 	em.labels[key] = value
 }
 
@@ -68,9 +67,6 @@ func (em *EventMeta) Labels() Labels { return em.labels }
 
 // AddAnnotationValue adds an annotation value
 func (em *EventMeta) AddAnnotationValue(key, value string) {
-	if em.annotations == nil {
-		em.annotations = Annotations{}
-	}
 	em.annotations[key] = value
 }
 

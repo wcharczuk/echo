@@ -21,17 +21,17 @@ type gcmUtil struct{}
 func (gu gcmUtil) Encrypt(key, plaintext []byte) ([]byte, []byte, []byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, nil, nil, exception.Wrap(err)
+		return nil, nil, nil, exception.New(err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, nil, nil, exception.Wrap(err)
+		return nil, nil, nil, exception.New(err)
 	}
 
 	nonce := make([]byte, gcm.NonceSize())
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, nil, nil, exception.Wrap(err)
+		return nil, nil, nil, exception.New(err)
 	}
 
 	// out is the concatination of nonce, ciphertext, and tag
@@ -49,23 +49,23 @@ func (gu gcmUtil) Decrypt(key, nonce, ciphertext, tag []byte) ([]byte, error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 
 	if len(nonce) != gcm.NonceSize() {
-		return nil, exception.New("Invalid `nonce`, should be [12]byte")
+		return nil, exception.New("invalid `nonce`, should be [12]byte")
 	}
 
 	message := append(ciphertext, tag...)
 
 	out, err := gcm.Open(nil, nonce, message, nil)
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 
 	return out, nil

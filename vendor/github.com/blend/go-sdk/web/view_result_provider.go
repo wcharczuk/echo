@@ -105,13 +105,25 @@ func (vr *ViewResultProvider) NotAuthorizedTemplateName() string {
 	return DefaultTemplateNameNotAuthorized
 }
 
+func (vr *ViewResultProvider) viewError(viewErr error) Result {
+	errorTemplate, _ := template.New("").Parse(DefaultTemplateInternalError)
+	return &ViewResult{
+		StatusCode: http.StatusInternalServerError,
+		ViewModel:  viewErr,
+		Template:   errorTemplate,
+	}
+}
+
 // BadRequest returns a view result.
 func (vr *ViewResultProvider) BadRequest(err error) Result {
 	if vr.log != nil {
 		vr.log.Warning(err)
 	}
 
-	temp := vr.views.Templates().Lookup(vr.BadRequestTemplateName())
+	temp, viewErr := vr.views.Lookup(vr.BadRequestTemplateName())
+	if viewErr != nil {
+		return vr.viewError(viewErr)
+	}
 	if temp == nil {
 		temp, _ = template.New("").Parse(DefaultTemplateBadRequest)
 	}
@@ -129,7 +141,10 @@ func (vr *ViewResultProvider) InternalError(err error) Result {
 		vr.log.Fatal(err)
 	}
 
-	temp := vr.views.Templates().Lookup(vr.InternalErrorTemplateName())
+	temp, viewErr := vr.views.Lookup(vr.InternalErrorTemplateName())
+	if viewErr != nil {
+		return vr.viewError(viewErr)
+	}
 	if temp == nil {
 		temp, _ = template.New("").Parse(DefaultTemplateInternalError)
 	}
@@ -145,10 +160,13 @@ func (vr *ViewResultProvider) InternalError(err error) Result {
 func (vr *ViewResultProvider) NotFound() Result {
 	err := vr.views.Initialize()
 	if err != nil {
-		return vr.InternalError(exception.NewFromErr(err).WithMessagef("viewname: %s", vr.NotFoundTemplateName()))
+		return vr.InternalError(exception.New(err).WithMessagef("viewname: %s", vr.NotFoundTemplateName()))
 	}
 
-	temp := vr.views.Templates().Lookup(vr.NotFoundTemplateName())
+	temp, viewErr := vr.views.Lookup(vr.NotFoundTemplateName())
+	if viewErr != nil {
+		return vr.viewError(viewErr)
+	}
 	if temp == nil {
 		temp, _ = template.New("").Parse(DefaultTemplateNotFound)
 	}
@@ -161,7 +179,10 @@ func (vr *ViewResultProvider) NotFound() Result {
 
 // NotAuthorized returns a view result.
 func (vr *ViewResultProvider) NotAuthorized() Result {
-	temp := vr.views.Templates().Lookup(vr.NotAuthorizedTemplateName())
+	temp, viewErr := vr.views.Lookup(vr.NotAuthorizedTemplateName())
+	if viewErr != nil {
+		return vr.viewError(viewErr)
+	}
 	if temp == nil {
 		temp, _ = template.New("").Parse(DefaultTemplateNotAuthorized)
 	}
@@ -174,10 +195,14 @@ func (vr *ViewResultProvider) NotAuthorized() Result {
 
 // View returns a view result.
 func (vr *ViewResultProvider) View(viewName string, viewModel interface{}) Result {
-	temp := vr.views.Templates().Lookup(viewName)
-	if temp == nil {
-		return vr.InternalError(exception.NewFromErr(ErrUnsetViewTemplate).WithMessagef("viewname: %s", viewName))
+	temp, viewErr := vr.views.Lookup(viewName)
+	if viewErr != nil {
+		return vr.viewError(viewErr)
 	}
+	if temp == nil {
+		return vr.InternalError(exception.New(ErrUnsetViewTemplate).WithMessagef("viewname: %s", viewName))
+	}
+
 	return &ViewResult{
 		StatusCode: http.StatusOK,
 		ViewModel:  viewModel,

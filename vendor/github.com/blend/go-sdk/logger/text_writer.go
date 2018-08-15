@@ -10,21 +10,6 @@ import (
 	"time"
 )
 
-const (
-	// DefaultBufferPoolSize is the default buffer pool size.
-	DefaultBufferPoolSize = 1 << 8 // 256
-
-	// DefaultTextTimeFormat is the default time format.
-	DefaultTextTimeFormat = time.RFC3339
-
-	// DefaultTextWriterUseColor is a default setting for writers.
-	DefaultTextWriterUseColor = true
-	// DefaultTextWriterShowHeadings is a default setting for writers.
-	DefaultTextWriterShowHeadings = true
-	// DefaultTextWriterShowTimestamp is a default setting for writers.
-	DefaultTextWriterShowTimestamp = true
-)
-
 // Asserts text writer is a writer.
 var (
 	_ Writer = &TextWriter{}
@@ -280,16 +265,6 @@ func (wr *TextWriter) write(output io.Writer, e Event) error {
 		typed.WriteText(wr, buf)
 	} else if typed, isTyped := e.(fmt.Stringer); isTyped {
 		buf.WriteString(typed.String())
-	}
-
-	if typed, isTyped := e.(EventLabels); isTyped {
-		if len(typed.Labels()) > 0 {
-			buf.WriteRune(RuneNewline)
-			for key, value := range typed.Labels() {
-				buf.WriteString(fmt.Sprintf("%s=%s", key, value))
-				buf.WriteRune(RuneSpace)
-			}
-		}
 	}
 
 	buf.WriteRune(RuneNewline)

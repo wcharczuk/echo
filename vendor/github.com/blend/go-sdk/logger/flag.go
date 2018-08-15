@@ -19,10 +19,10 @@ const (
 	// Silly is for when you just need to log something weird.
 	Silly Flag = "silly"
 
-	// WebRequestStart is an event flag.
-	WebRequestStart Flag = "web.request.start"
-	// WebRequest is an event flag.
-	WebRequest Flag = "web.request"
+	// HTTPRequest is an event flag.
+	HTTPRequest Flag = "http.request"
+	// HTTPResponse is an event flag.
+	HTTPResponse Flag = "http.response"
 
 	// Audit is an event flag.
 	Audit Flag = "audit"

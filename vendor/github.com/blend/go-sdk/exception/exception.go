@@ -7,34 +7,44 @@ import (
 )
 
 // New returns a new exception with a call stack.
-func New(classArgs ...interface{}) Exception {
-	return &Ex{
-		class: fmt.Sprint(classArgs...),
-		stack: callers(),
-	}
+func New(class interface{}) Exception {
+	return newWithStartDepth(class, defaultNewStartDepth)
 }
 
-// Newf returns a new exception by `Sprintf`ing the format and the args.
-func Newf(classFormat string, args ...interface{}) Exception {
-	return &Ex{
-		class: fmt.Sprintf(classFormat, args...),
-		stack: callers(),
-	}
+// Wrap returns a new exception with a call stack.
+// DEPRECATION NOTICE: this function is superfluous, please just use `New(...)`.
+func Wrap(class interface{}) Exception {
+	return newWithStartDepth(class, defaultNewStartDepth)
 }
 
-// NewFromErr returns a new exception from an error.
-func NewFromErr(err error) Exception {
+func newWithStartDepth(class interface{}, startDepth int) Exception {
+	if class == nil {
+		return nil
+	}
+
+	if typed, isTyped := class.(Exception); isTyped {
+		return typed
+	} else if err, isErr := class.(error); isErr {
+		return &Ex{
+			class: err,
+			stack: callers(startDepth),
+		}
+	} else if str, isStr := class.(string); isStr {
+		return &Ex{
+			class: Class(str),
+			stack: callers(startDepth),
+		}
+	}
 	return &Ex{
-		inner: err,
-		class: err.Error(),
-		stack: callers(),
+		class: Class(fmt.Sprint(class)),
+		stack: callers(startDepth),
 	}
 }
 
 // Nest nests an arbitrary number of exceptions.
 func Nest(err ...error) Exception {
-	var ex *Ex
-	var last *Ex
+	var ex Exception
+	var last Exception
 	var didSet bool
 
 	for _, e := range err {
@@ -42,8 +52,8 @@ func Nest(err ...error) Exception {
 			var wrappedEx *Ex
 			if typedEx, isTyped := e.(*Ex); !isTyped {
 				wrappedEx = &Ex{
-					class: e.Error(),
-					stack: callers(),
+					class: e,
+					stack: callers(defaultStartDepth),
 				}
 			} else {
 				wrappedEx = typedEx
@@ -54,7 +64,7 @@ func Nest(err ...error) Exception {
 					ex = wrappedEx
 					last = wrappedEx
 				} else {
-					last.inner = wrappedEx
+					last.WithInner(wrappedEx)
 					last = wrappedEx
 				}
 				didSet = true
@@ -67,26 +77,14 @@ func Nest(err ...error) Exception {
 	return nil
 }
 
-// Wrap wraps an exception, will return error-typed `nil` if the exception is nil.
-func Wrap(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if typed, isTyped := err.(*Ex); isTyped {
-		return typed
-	}
-	return NewFromErr(err)
-}
-
 // Exception is an exception.
 type Exception interface {
 	error
 	fmt.Formatter
 	json.Marshaler
 
-	WithClass(string) Exception
-	Class() string
+	WithClass(error) Exception
+	Class() error
 	WithMessagef(string, ...interface{}) Exception
 	Message() string
 	WithInner(error) Exception
@@ -98,9 +96,10 @@ type Exception interface {
 }
 
 // Ex is an error with a stack trace.
+// It also can have an optional cause, it implements `Exception`
 type Ex struct {
 	// Class disambiguates between errors, it can be used to identify the type of the error.
-	class string
+	class error
 	// Message adds further detail to the error, and shouldn't be used for disambiguation.
 	message string
 	// Inner holds the original error in cases where we're wrapping an error with a stack trace.
@@ -119,7 +118,7 @@ func (e *Ex) Format(s fmt.State, verb rune) {
 	switch verb {
 	case 'v':
 		if s.Flag('+') {
-			if len(e.class) > 0 {
+			if e.class != nil && len(e.class.Error()) > 0 {
 				fmt.Fprintf(s, "%s", e.class)
 				if len(e.message) > 0 {
 					fmt.Fprintf(s, "\nmessage: %s", e.message)
@@ -135,17 +134,13 @@ func (e *Ex) Format(s fmt.State, verb rune) {
 			return
 		}
 
-		if len(e.class) > 0 {
-			io.WriteString(s, e.class)
-			if len(e.message) > 0 {
-				fmt.Fprintf(s, "\nmessage: %s", e.message)
-			}
-		} else if len(e.message) > 0 {
-			io.WriteString(s, e.message)
+		io.WriteString(s, e.class.Error())
+		if len(e.message) > 0 {
+			fmt.Fprintf(s, "\nmessage: %s", e.message)
 		}
 		return
 	case 'c':
-		io.WriteString(s, e.class)
+		io.WriteString(s, e.class.Error())
 	case 'm':
 		io.WriteString(s, e.message)
 	case 'q':
@@ -154,7 +149,9 @@ func (e *Ex) Format(s fmt.State, verb rune) {
 }
 
 // Error implements the `error` interface
-func (e *Ex) Error() string { return e.class }
+func (e *Ex) Error() string {
+	return e.class.Error()
+}
 
 // Decompose breaks the exception down to be marshalled into an intermediate format.
 func (e *Ex) Decompose() map[string]interface{} {
@@ -165,7 +162,7 @@ func (e *Ex) Decompose() map[string]interface{} {
 		values["Stack"] = e.Stack().Strings()
 	}
 	if e.inner != nil {
-		if typed, isTyped := e.inner.(*Ex); isTyped {
+		if typed, isTyped := e.inner.(Exception); isTyped {
 			values["Inner"] = typed.Decompose()
 		} else {
 			values["Inner"] = e.inner.Error()
@@ -180,35 +177,41 @@ func (e *Ex) MarshalJSON() ([]byte, error) {
 }
 
 // WithClass sets the exception class and returns the exepction.
-func (e *Ex) WithClass(class string) Exception {
+func (e *Ex) WithClass(class error) Exception {
 	e.class = class
 	return e
 }
 
 // Class returns the exception class.
-func (e *Ex) Class() string {
+// This error should be equatable, that is, you should be able to use it to test
+// if an error is a similar class to another error.
+func (e *Ex) Class() error {
 	return e.class
 }
 
-// WithInner sets the inner and returns the exception.
+// WithInner sets inner or causing exception.
 func (e *Ex) WithInner(err error) Exception {
-	e.inner = err
+	if e == nil {
+		return newWithStartDepth(err, defaultNewStartDepth)
+	}
+	e.inner = newWithStartDepth(err, defaultNewStartDepth)
 	return e
 }
 
-// Inner returns the nested exception.
+// Inner returns an optional nested exception.
 func (e *Ex) Inner() error {
 	return e.inner
 }
-
-// Message returns just the message, it is effectively
-// an alias to .Error()
-func (e *Ex) Message() string { return e.message }
 
 // WithMessagef sets the message based on a format and args, and returns the exception.
 func (e *Ex) WithMessagef(format string, args ...interface{}) Exception {
 	e.message = fmt.Sprintf(format, args...)
 	return e
+}
+
+// Message returns the exception descriptive message.
+func (e *Ex) Message() string {
+	return e.message
 }
 
 // WithStack sets the stack.
@@ -221,9 +224,4 @@ func (e *Ex) WithStack(stack StackTrace) Exception {
 // This is typically the runtime []uintptr or []string if restored after the fact.
 func (e *Ex) Stack() StackTrace {
 	return e.stack
-}
-
-// StackString returns the stack trace as a string.
-func (e *Ex) StackString() string {
-	return fmt.Sprintf("%v", e.stack)
 }

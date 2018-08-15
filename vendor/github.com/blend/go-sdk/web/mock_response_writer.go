@@ -10,7 +10,7 @@ import (
 func NewMockResponseWriter(buffer io.Writer) *MockResponseWriter {
 	return &MockResponseWriter{
 		innerWriter: buffer,
-		contents:    bytes.NewBuffer([]byte{}),
+		contents:    new(bytes.Buffer),
 		headers:     http.Header{},
 	}
 }

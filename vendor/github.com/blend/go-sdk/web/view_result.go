@@ -32,7 +32,7 @@ func (vr *ViewResult) Render(ctx *Ctx) (err error) {
 			err = vr.Provider.InternalError(err).Render(ctx)
 			return
 		}
-		err = exception.Wrap(err)
+		err = exception.New(err)
 		return
 	}
 

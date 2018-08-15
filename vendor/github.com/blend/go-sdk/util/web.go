@@ -17,7 +17,7 @@ func WriteJSON(w http.ResponseWriter, statusCode int, response interface{}) (int
 		w.WriteHeader(statusCode)
 		count, writeError := w.Write(bytes)
 		if count == 0 {
-			return count, exception.New("WriteJson : Didnt write any bytes.")
+			return count, exception.New("no bytes written")
 		}
 		return count, writeError
 	}

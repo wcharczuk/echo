@@ -17,8 +17,8 @@ func (tu timeUtil) CurrentTimeMillis() int64 {
 	return tu.UnixMillis(time.Now().UTC())
 }
 
-// FromMillis returns a time from an unix time in millis.
-func (tu timeUtil) FromMillis(millis int64) time.Time {
+// FromUnixMillis returns a time from an unix time in millis.
+func (tu timeUtil) FromUnixMillis(millis int64) time.Time {
 	seconds := time.Duration(millis) / (time.Second / time.Millisecond)
 	nanoSeconds := ((time.Duration(millis) * time.Millisecond) - (time.Duration(seconds) * time.Second)) / time.Nanosecond
 	return time.Unix(int64(seconds), int64(nanoSeconds)).UTC()

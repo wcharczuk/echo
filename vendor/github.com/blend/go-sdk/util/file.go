@@ -139,11 +139,11 @@ func (fu fileUtil) ReadByLines(filePath string, handler ReadLineHandler) error {
 			line := scanner.Text()
 			err = handler(line)
 			if err != nil {
-				return exception.Wrap(err)
+				return exception.New(err)
 			}
 		}
 	} else {
-		return exception.Wrap(err)
+		return exception.New(err)
 	}
 	return nil
 }
@@ -162,11 +162,11 @@ func (fu fileUtil) ReadByChunks(filePath string, chunkSize int, handler ReadChun
 			readData := chunk[:readBytes]
 			err = handler(readData)
 			if err != nil {
-				return exception.Wrap(err)
+				return exception.New(err)
 			}
 		}
 	} else {
-		return exception.Wrap(err)
+		return exception.New(err)
 	}
 	return nil
 }

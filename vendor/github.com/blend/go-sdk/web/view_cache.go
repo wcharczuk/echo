@@ -114,7 +114,7 @@ func (vc *ViewCache) Parse() (views *template.Template, err error) {
 	if len(vc.viewPaths) > 0 {
 		views, err = views.ParseFiles(vc.viewPaths...)
 		if err != nil {
-			err = exception.Wrap(err)
+			err = exception.New(err)
 			return
 		}
 	}
@@ -123,7 +123,7 @@ func (vc *ViewCache) Parse() (views *template.Template, err error) {
 		for _, viewLiteral := range vc.viewLiterals {
 			views, err = views.Parse(viewLiteral)
 			if err != nil {
-				err = exception.Wrap(err)
+				err = exception.New(err)
 				return
 			}
 		}
@@ -180,11 +180,24 @@ func (vc *ViewCache) FuncMap() template.FuncMap {
 }
 
 // Templates gets the view cache for the app.
-func (vc *ViewCache) Templates() *template.Template {
+func (vc *ViewCache) Templates() (*template.Template, error) {
 	if vc == nil {
-		return nil
+		return nil, nil
 	}
-	return vc.viewCache
+	if vc.cached {
+		return vc.viewCache, nil
+	}
+	return vc.Parse()
+}
+
+// Lookup looks up a view.
+func (vc *ViewCache) Lookup(name string) (*template.Template, error) {
+	views, err := vc.Templates()
+	if err != nil {
+		return nil, err
+	}
+
+	return views.Lookup(name), nil
 }
 
 // SetTemplates sets the view cache for the app.

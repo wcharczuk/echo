@@ -80,7 +80,7 @@ func NewHealthzFromConfig(app *App, cfg *HealthzConfig) *Healthz {
 func HealthzHost(app *App, hz *Healthz) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = exception.Newf("%v", r)
+			err = exception.New(r)
 			return
 		}
 	}()
@@ -339,7 +339,7 @@ func (hz *Healthz) WithLogger(log *logger.Logger) *Healthz {
 // Start starts the server.
 func (hz *Healthz) Start() (err error) {
 	if hz.app == nil {
-		err = exception.Wrap(ErrHealthzAppUnset)
+		err = exception.New(ErrHealthzAppUnset)
 		return
 	}
 	start := time.Now()
@@ -354,7 +354,7 @@ func (hz *Healthz) Start() (err error) {
 	hz.vars[VarzStarted] = time.Now().UTC()
 
 	if hz.app.log != nil {
-		hz.app.log.Listen(logger.WebRequest, ListenerHealthz, logger.NewWebRequestEventListener(hz.appWebRequestListener))
+		hz.app.log.Listen(logger.HTTPResponse, ListenerHealthz, logger.NewHTTPResponseEventListener(hz.appHTTPResponseListener))
 		hz.app.log.Listen(logger.Error, ListenerHealthz, logger.NewErrorEventListener(hz.appErrorListener))
 		hz.app.log.Listen(logger.Fatal, ListenerHealthz, logger.NewErrorEventListener(hz.appErrorListener))
 	}
@@ -369,7 +369,7 @@ func (hz *Healthz) Start() (err error) {
 	var listener net.Listener
 	listener, err = net.Listen("tcp", hz.bindAddr)
 	if err != nil {
-		err = exception.Wrap(err)
+		err = exception.New(err)
 		return
 	}
 	hz.listener = listener.(*net.TCPListener)
@@ -393,7 +393,7 @@ func (hz *Healthz) Shutdown() error {
 		hz.log.SyncInfof("healthz server shutting down")
 	}
 	hz.server.SetKeepAlivesEnabled(false)
-	return exception.Wrap(hz.server.Shutdown(ctx))
+	return exception.New(hz.server.Shutdown(ctx))
 }
 
 // CreateServer returns the basic http.Server for the app.
@@ -422,13 +422,13 @@ func (hz *Healthz) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 	if hz.log != nil {
-		hz.log.Trigger(logger.NewWebRequestStartEvent(r).WithState(hz.state).WithRoute(route))
+		hz.log.Trigger(logger.NewHTTPResponseEvent(r).WithState(hz.state).WithRoute(route))
 
 		defer func() {
-			hz.log.Trigger(logger.NewWebRequestEvent(r).
+			hz.log.Trigger(logger.NewHTTPResponseEvent(r).
 				WithStatusCode(res.StatusCode()).
 				WithElapsed(time.Since(start)).
-				WithContentLength(int64(res.ContentLength())).
+				WithContentLength(res.ContentLength()).
 				WithState(hz.state))
 		}()
 	}
@@ -501,7 +501,7 @@ func (hz *Healthz) varzHandler(w ResponseWriter, r *http.Request) {
 	}
 }
 
-func (hz *Healthz) appWebRequestListener(wre *logger.WebRequestEvent) {
+func (hz *Healthz) appHTTPResponseListener(wre *logger.HTTPResponseEvent) {
 	hz.varsLock.Lock()
 	defer hz.varsLock.Unlock()
 

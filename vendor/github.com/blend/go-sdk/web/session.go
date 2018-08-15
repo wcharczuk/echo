@@ -12,18 +12,32 @@ func NewSession(userID string, sessionID string) *Session {
 		SessionID:  sessionID,
 		CreatedUTC: time.Now().UTC(),
 		State:      map[string]interface{}{},
-		Mutex:      &sync.RWMutex{},
 	}
 }
 
 // Session is an active session
 type Session struct {
+	sync.RWMutex `json:"-" yaml:"-"`
+
 	UserID     string                 `json:"userID" yaml:"userID"`
 	SessionID  string                 `json:"sessionID" yaml:"sessionID"`
 	CreatedUTC time.Time              `json:"createdUTC" yaml:"createdUTC"`
 	ExpiresUTC *time.Time             `json:"expiresUTC" yaml:"expiresUTC"`
+	UserAgent  string                 `json:"userAgent" yaml:"userAgent"`
+	RemoteAddr string                 `json:"remoteAddr" yaml:"remoteAddr"`
 	State      map[string]interface{} `json:"state,omitempty" yaml:"state,omitempty"`
-	Mutex      *sync.RWMutex          `json:"-" yaml:"-"`
+}
+
+// WithUserAgent sets the user agent.
+func (s *Session) WithUserAgent(userAgent string) *Session {
+	s.UserAgent = userAgent
+	return s
+}
+
+// WithRemoteAddr sets the remote addr.
+func (s *Session) WithRemoteAddr(remoteAddr string) *Session {
+	s.RemoteAddr = remoteAddr
+	return s
 }
 
 // IsExpired returns if the session is expired.
@@ -37,12 +51,6 @@ func (s *Session) IsExpired() bool {
 	return s.ExpiresUTC.Before(time.Now().UTC())
 }
 
-func (s *Session) ensureMutex() {
-	if s.Mutex == nil {
-		s.Mutex = &sync.RWMutex{}
-	}
-}
-
 // IsZero returns if the object is set or not.
 // It will return true if either the userID or the sessionID are unset.
 func (s *Session) IsZero() bool {
@@ -50,28 +58,4 @@ func (s *Session) IsZero() bool {
 		return true
 	}
 	return len(s.UserID) == 0 || len(s.SessionID) == 0
-}
-
-// Lock locks the session.
-func (s *Session) Lock() {
-	s.ensureMutex()
-	s.Mutex.Lock()
-}
-
-// Unlock unlocks the session.
-func (s *Session) Unlock() {
-	s.ensureMutex()
-	s.Mutex.Unlock()
-}
-
-// RLock read locks the session.
-func (s *Session) RLock() {
-	s.ensureMutex()
-	s.Mutex.RLock()
-}
-
-// RUnlock read unlocks the session.
-func (s *Session) RUnlock() {
-	s.ensureMutex()
-	s.Mutex.RUnlock()
 }

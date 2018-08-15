@@ -18,22 +18,22 @@ func SessionAwareUnsafe(action Action) Action {
 // SessionRequired is an action that requires a session to be present
 // or identified in some form on the request, and acquires a read lock on session.
 func SessionRequired(action Action) Action {
-	return sessionMiddleware(action, AuthManagerRedirect, SessionReadLock)
+	return sessionMiddleware(action, AuthManagerLoginRedirect, SessionReadLock)
 }
 
 // SessionRequiredMutating is an action that requires the session to present and also requires a write lock.
 func SessionRequiredMutating(action Action) Action {
-	return sessionMiddleware(action, AuthManagerRedirect, SessionReadWriteLock)
+	return sessionMiddleware(action, AuthManagerLoginRedirect, SessionReadWriteLock)
 }
 
 // SessionRequiredUnsafe is an action that requires the session to present and does not acquire any (read or write) locks.
 func SessionRequiredUnsafe(action Action) Action {
-	return sessionMiddleware(action, AuthManagerRedirect, SessionUnsafe)
+	return sessionMiddleware(action, AuthManagerLoginRedirect, SessionUnsafe)
 }
 
-// AuthManagerRedirect is a redirect.
-func AuthManagerRedirect(ctx *Ctx) Result {
-	return ctx.Auth().Redirect(ctx)
+// AuthManagerLoginRedirect is a redirect.
+func AuthManagerLoginRedirect(ctx *Ctx) Result {
+	return ctx.Auth().LoginRedirect(ctx)
 }
 
 // SessionMiddleware creates a custom session middleware.

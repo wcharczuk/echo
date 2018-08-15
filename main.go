@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
-	"git.blendlabs.com/blend/logs/client"
 	"github.com/blend/go-sdk/env"
 	"github.com/blend/go-sdk/exception"
 	"github.com/blend/go-sdk/logger"
@@ -13,11 +13,11 @@ import (
 )
 
 func main() {
-	agent := logger.All()
+	log := logger.All()
 
 	appStart := time.Now()
 
-	app := web.NewFromConfig(web.NewConfigFromEnv()).WithLogger(agent)
+	app := web.NewFromConfig(web.NewConfigFromEnv()).WithLogger(log)
 	app.GET("/", func(r *web.Ctx) web.Result {
 		return r.Text().Result("echo")
 	})
@@ -32,7 +32,7 @@ func main() {
 		return r.JSON().Result(env.Env().Vars())
 	})
 	app.GET("/error", func(r *web.Ctx) web.Result {
-		return r.JSON().InternalError(exception.Newf("This is only a test").WithMessagef("this is a message").WithInner(exception.Newf("inner exception")))
+		return r.JSON().InternalError(exception.New("This is only a test").WithMessagef("this is a message").WithInner(exception.New("inner exception")))
 	})
 	app.GET("/proxy/*filepath", func(r *web.Ctx) web.Result {
 		return r.JSON().Result("OK!")
@@ -41,14 +41,16 @@ func main() {
 		if time.Since(appStart) > 12*time.Second {
 			return r.Text().Result("OK!")
 		}
-		return r.Text().BadRequest(fmt.Errorf("not ready"))
+		return r.Text().InternalError(fmt.Errorf("not ready"))
 	})
+
 	app.GET("/long/:seconds", func(r *web.Ctx) web.Result {
 		seconds, err := r.RouteParamInt("seconds")
 		if err != nil {
 			return r.Text().BadRequest(err)
 		}
 
+		r.Response().WriteHeader(http.StatusOK)
 		timeout := time.After(time.Duration(seconds) * time.Second)
 		ticker := time.NewTicker(500 * time.Millisecond)
 		for {
@@ -56,14 +58,18 @@ func main() {
 			case <-ticker.C:
 				{
 					fmt.Fprintf(r.Response(), "tick\n")
+					r.Response().InnerResponse().(http.Flusher).Flush()
 				}
 			case <-timeout:
 				{
-					return r.Raw([]byte("timeout\n"))
+					fmt.Fprintf(r.Response(), "timeout\n")
+					r.Response().InnerResponse().(http.Flusher).Flush()
+					return nil
 				}
 			}
 		}
 	})
+
 	app.GET("/echo/*filepath", func(r *web.Ctx) web.Result {
 		body := r.Request().URL.Path
 		if len(body) == 0 {
@@ -82,10 +88,19 @@ func main() {
 		return r.RawWithContentType(web.ContentTypeText, body)
 	})
 
-	collector, err := client.AddListeners(agent, client.NewConfigFromEnv())
-	if err != nil {
-		agent.SyncWarning(err)
-	}
-	defer collector.Close()
-	agent.SyncFatalExit(app.Start())
+	app.WithMethodNotAllowedHandler(func(r *web.Ctx) web.Result {
+		log.Infof("headers: %#v", r.Request().Header)
+		body, _ := r.PostBodyAsString()
+		log.Infof("body: %s", body)
+		return r.JSON().OK()
+	})
+
+	app.WithNotFoundHandler(func(r *web.Ctx) web.Result {
+		log.Infof("headers: %#v", r.Request().Header)
+		body, _ := r.PostBodyAsString()
+		log.Infof("body: %s", body)
+		return r.JSON().OK()
+	})
+
+	web.GracefulShutdown(app)
 }

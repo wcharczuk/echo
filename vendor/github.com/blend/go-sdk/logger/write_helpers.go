@@ -8,29 +8,31 @@ import (
 )
 
 // FormatFileSize returns a string representation of a file size in bytes.
-func FormatFileSize(sizeBytes int64) string {
+func FormatFileSize(sizeBytes int) string {
 	if sizeBytes >= 1<<30 {
-		return strconv.FormatInt(sizeBytes/Gigabyte, 10) + "gb"
+		return strconv.Itoa(sizeBytes/Gigabyte) + "gb"
 	} else if sizeBytes >= 1<<20 {
-		return strconv.FormatInt(sizeBytes/Megabyte, 10) + "mb"
+		return strconv.Itoa(sizeBytes/Megabyte) + "mb"
 	} else if sizeBytes >= 1<<10 {
-		return strconv.FormatInt(sizeBytes/Kilobyte, 10) + "kb"
+		return strconv.Itoa(sizeBytes/Kilobyte) + "kb"
 	}
-	return strconv.FormatInt(sizeBytes, 10)
+	return strconv.Itoa(sizeBytes)
 }
 
-// TextWriteRequestStart is a helper method to write request start events to a writer.
-func TextWriteRequestStart(tf TextFormatter, buf *bytes.Buffer, req *http.Request) {
-	buf.WriteString(GetIP(req))
-	buf.WriteRune(RuneSpace)
+// TextWriteHTTPRequest is a helper method to write request start events to a writer.
+func TextWriteHTTPRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request) {
+	if ip := GetRemoteAddr(req); len(ip) > 0 {
+		buf.WriteString(ip)
+		buf.WriteRune(RuneSpace)
+	}
 	buf.WriteString(tf.Colorize(req.Method, ColorBlue))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(req.URL.Path)
 }
 
-// TextWriteRequest is a helper method to write request complete events to a writer.
-func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode int, contentLength int64, contentType string, elapsed time.Duration) {
-	buf.WriteString(GetIP(req))
+// TextWriteHTTPResponse is a helper method to write request complete events to a writer.
+func TextWriteHTTPResponse(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode, contentLength int, contentType string, elapsed time.Duration) {
+	buf.WriteString(GetRemoteAddr(req))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(tf.Colorize(req.Method, ColorBlue))
 	buf.WriteRune(RuneSpace)
@@ -45,20 +47,20 @@ func TextWriteRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request, st
 	buf.WriteString(FormatFileSize(contentLength))
 }
 
-// JSONWriteRequestStart marshals a request start as json.
-func JSONWriteRequestStart(req *http.Request) JSONObj {
+// JSONWriteHTTPRequest marshals a request start as json.
+func JSONWriteHTTPRequest(req *http.Request) JSONObj {
 	return JSONObj{
-		"ip":   GetIP(req),
+		"ip":   GetRemoteAddr(req),
 		"verb": req.Method,
 		"path": req.URL.Path,
 		"host": req.Host,
 	}
 }
 
-// JSONWriteRequest marshals a request as json.
-func JSONWriteRequest(req *http.Request, statusCode int, contentLength int64, contentType, contentEncoding string, elapsed time.Duration) JSONObj {
+// JSONWriteHTTPResponse marshals a request as json.
+func JSONWriteHTTPResponse(req *http.Request, statusCode, contentLength int, contentType, contentEncoding string, elapsed time.Duration) JSONObj {
 	return JSONObj{
-		"ip":              GetIP(req),
+		"ip":              GetRemoteAddr(req),
 		"verb":            req.Method,
 		"path":            req.URL.Path,
 		"host":            req.Host,

@@ -22,11 +22,11 @@ func (gu gzipUtil) Compress(contents []byte) ([]byte, error) {
 	w.Write(contents)
 	err := w.Flush()
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	err = w.Close()
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 
 	return b.Bytes(), nil
@@ -36,9 +36,9 @@ func (gu gzipUtil) Compress(contents []byte) ([]byte, error) {
 func (gu gzipUtil) Decompress(contents []byte) ([]byte, error) {
 	r, err := gzip.NewReader(bytes.NewBuffer(contents))
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	defer r.Close()
 	decompressed, err := ioutil.ReadAll(r)
-	return decompressed, exception.Wrap(err)
+	return decompressed, exception.New(err)
 }

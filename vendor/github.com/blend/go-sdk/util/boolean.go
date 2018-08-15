@@ -14,6 +14,11 @@ var (
 	BooleanFalse Boolean = false
 )
 
+const (
+	// ErrBooleanUnmarshal is an exception class.
+	ErrBooleanUnmarshal = exception.Class("cannot unmarshal boolean")
+)
+
 // Boolean is a type alias for bool that can be unmarshaled from 0|1, true|false etc.
 type Boolean bool
 
@@ -30,7 +35,7 @@ func (bit *Boolean) UnmarshalJSON(data []byte) error {
 		cleaned := String.StripQuotes(asString)
 		return bit.UnmarshalJSON([]byte(cleaned))
 	}
-	return exception.Newf("Boolean unmarshal error: invalid input %s", asString)
+	return exception.New(ErrBooleanUnmarshal).WithMessagef("invalid input %s", asString)
 }
 
 // AsBool returns the stdlib bool value for the boolean.

@@ -3,7 +3,6 @@ package env
 import (
 	"fmt"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,6 +42,10 @@ const (
 	// VarPGMaxConns is a common env var name.
 	VarPGMaxConns = "PG_MAX_CONNS"
 
+	// ServiceEnvTest is a service environment.
+	ServiceEnvTest = "test"
+	// ServiceEnvSandbox is a service environment.
+	ServiceEnvSandbox = "sandbox"
 	// ServiceEnvDev is a service environment.
 	ServiceEnvDev = "dev"
 	// ServiceEnvCI is a service environment.
@@ -53,23 +56,14 @@ const (
 	ServiceEnvBeta = "beta"
 	// ServiceEnvProd is a service environment.
 	ServiceEnvProd = "prod"
+
+	// TagName is the reflection tag name.
+	TagName = "env"
 )
 
-// ReadIntoConstants
-const (
-	// FieldTagEnv is the struct tag for what environment variable to use to populate a field.
-	FieldTagEnv = "env"
-	// FieldFlagCSV is a field tag flag (say that 10 times fast).
-	FieldFlagCSV = "csv"
-	// FieldFlagBase64 is a field tag flag (say that 10 times fast).
-	FieldFlagBase64 = "base64"
-	// FieldFlagBytes is a field tag flag (say that 10 times fast).
-	FieldFlagBytes = "bytes"
-)
-
-// Marshaler is a type that implements `ReadInto`.
-type Marshaler interface {
-	MarshalEnv(vars Vars) error
+// Unmarshaler is a type that implements `UnmarshalEnv`.
+type Unmarshaler interface {
+	UnmarshalEnv(vars Vars) error
 }
 
 // Env returns the current env var set.
@@ -171,12 +165,7 @@ func (ev Vars) ReadFile(path string) error {
 // Everything else is false, including `REEEEEEEEEEEEEEE`.
 func (ev Vars) Bool(envVar string, defaults ...bool) bool {
 	if value, hasValue := ev[envVar]; hasValue {
-		if len(value) > 0 {
-			return util.String.CaseInsensitiveEquals(value, "true") ||
-				util.String.CaseInsensitiveEquals(value, "yes") ||
-				util.String.CaseInsensitiveEquals(value, "enabled") ||
-				value == "1"
-		}
+		return util.Parse.Bool(value)
 	}
 	if len(defaults) > 0 {
 		return defaults[0]
@@ -466,138 +455,10 @@ func (ev Vars) ServiceName(defaults ...string) string {
 	return ev.String(VarServiceName, defaults...)
 }
 
-// ReadInto reads the environment into tagged fields on the `obj`.
+// ReadInto sets an object based on the fields in the env vars set.
 func (ev Vars) ReadInto(obj interface{}) error {
-	// check if the type implements marshaler.
-	if typed, isTyped := obj.(Marshaler); isTyped {
-		return typed.MarshalEnv(ev)
+	if typed, isTyped := obj.(Unmarshaler); isTyped {
+		return typed.UnmarshalEnv(ev)
 	}
-
-	objMeta := util.Reflection.ReflectType(obj)
-	objValue := util.Reflection.ReflectValue(obj)
-
-	typeBool := reflect.TypeOf(false)
-	typeDuration := reflect.TypeOf(time.Nanosecond)
-	typeFloat32 := reflect.TypeOf(float32(1.0))
-	typeFloat64 := reflect.TypeOf(float64(1.0))
-	typeInt := reflect.TypeOf(1)
-	typeInt8 := reflect.TypeOf(int8(1))
-	typeInt16 := reflect.TypeOf(int16(1))
-	typeInt32 := reflect.TypeOf(int32(1))
-	typeInt64 := reflect.TypeOf(int64(1))
-	typeUint := reflect.TypeOf(uint(1))
-	typeUint8 := reflect.TypeOf(uint8(1))
-	typeUint16 := reflect.TypeOf(uint16(1))
-	typeUint32 := reflect.TypeOf(uint32(1))
-	typeUint64 := reflect.TypeOf(uint64(1))
-	typeUintptr := reflect.TypeOf(uintptr(1))
-
-	var field reflect.StructField
-	var tag string
-	var envValue interface{}
-	var err error
-	var pieces []string
-	var envVar string
-
-	for x := 0; x < objMeta.NumField(); x++ {
-		field = objMeta.Field(x)
-
-		// Treat structs as nested values.
-		if field.Type.Kind() == reflect.Struct {
-			if err = ev.ReadInto(objValue.Field(x).Addr().Interface()); err != nil {
-				return err
-			}
-			continue
-		}
-
-		tag = field.Tag.Get(FieldTagEnv)
-		if len(tag) > 0 {
-			var csv bool
-			var bytes bool
-			var base64 bool
-
-			pieces = strings.Split(tag, ",")
-			envVar = pieces[0]
-			if len(pieces) > 1 {
-				for y := 1; y < len(pieces); y++ {
-					if pieces[y] == FieldFlagCSV {
-						csv = true
-					} else if pieces[y] == FieldFlagBase64 {
-						base64 = true
-					} else if pieces[y] == FieldFlagBytes {
-						bytes = true
-					}
-				}
-			}
-
-			if !ev.Has(envVar) {
-				continue
-			}
-
-			if csv {
-				envValue = ev.CSV(envVar)
-			} else if base64 {
-				envValue, err = ev.Base64(envVar)
-				if err != nil {
-					return err
-				}
-			} else if bytes {
-				envValue = ev.Bytes(envVar)
-			} else {
-				// infer the type.
-				fieldType := util.Reflection.FollowType(field.Type)
-				switch fieldType {
-				case typeBool:
-					if ev.Has(envVar) {
-						envValue = ev.Bool(envVar)
-					} else {
-						continue
-					}
-				case typeFloat32, typeFloat64:
-					envValue, err = ev.Float64(envVar)
-					if err != nil {
-						return err
-					}
-				case typeInt, typeInt8, typeInt16:
-					envValue, err = ev.Int(envVar)
-					if err != nil {
-						return err
-					}
-				case typeInt32:
-					envValue, err = ev.Int32(envVar)
-					if err != nil {
-						return err
-					}
-				case typeInt64:
-					envValue, err = ev.Int64(envVar)
-					if err != nil {
-						return err
-					}
-				case typeUint32:
-					envValue, err = ev.Uint32(envVar)
-					if err != nil {
-						return err
-					}
-				case typeUint, typeUint8, typeUint16, typeUint64, typeUintptr:
-					envValue, err = ev.Uint64(envVar)
-					if err != nil {
-						return err
-					}
-				case typeDuration:
-					envValue, err = ev.Duration(envVar)
-					if err != nil {
-						return err
-					}
-				default:
-					envValue = ev.String(envVar)
-				}
-			}
-
-			err = util.Reflection.SetValueByName(obj, field.Name, envValue)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return util.Reflection.PatchStrings(TagName, ev, obj)
 }

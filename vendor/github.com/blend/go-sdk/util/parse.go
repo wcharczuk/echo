@@ -63,7 +63,7 @@ func (pu parseUtil) Ints(values ...string) (output []int, err error) {
 	for i, v := range values {
 		val, err = strconv.Atoi(v)
 		if err != nil {
-			err = exception.Wrap(err)
+			err = exception.New(err)
 			return
 		}
 		output[i] = val
@@ -78,7 +78,7 @@ func (pu parseUtil) Int64s(values ...string) (output []int64, err error) {
 	for i, v := range values {
 		val, err = strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			err = exception.Wrap(err)
+			err = exception.New(err)
 			return
 		}
 		output[i] = val
@@ -93,10 +93,21 @@ func (pu parseUtil) Float64s(values ...string) (output []float64, err error) {
 	for i, v := range values {
 		val, err = strconv.ParseFloat(v, 64)
 		if err != nil {
-			err = exception.Wrap(err)
+			err = exception.New(err)
 			return
 		}
 		output[i] = val
 	}
 	return
+}
+
+// Bool parses a boolean value.
+func (pu parseUtil) Bool(value string) bool {
+	if len(value) > 0 {
+		return String.CaseInsensitiveEquals(value, "true") ||
+			String.CaseInsensitiveEquals(value, "yes") ||
+			String.CaseInsensitiveEquals(value, "enabled") ||
+			value == "1"
+	}
+	return false
 }

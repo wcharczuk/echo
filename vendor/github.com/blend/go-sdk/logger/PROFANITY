@@ -21,4 +21,5 @@
 - contains: "github.com/blend/go-sdk/workqueue"
   message: "you shouldn't need to add workqueue to logger"
 - contains: "github.com/blend/go-sdk/yaml"
+  exclude: "*_test.go"
   message: "you shouldn't need to add yaml to logger"

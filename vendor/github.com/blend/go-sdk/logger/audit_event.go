@@ -16,12 +16,11 @@ var (
 )
 
 // NewAuditEvent returns a new audit event.
-func NewAuditEvent(principal, verb, noun string) *AuditEvent {
+func NewAuditEvent(principal, verb string) *AuditEvent {
 	return &AuditEvent{
 		EventMeta: NewEventMeta(Audit),
 		principal: principal,
 		verb:      verb,
-		noun:      noun,
 	}
 }
 

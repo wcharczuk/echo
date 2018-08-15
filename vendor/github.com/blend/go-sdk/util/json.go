@@ -18,12 +18,12 @@ type jsonUtil struct{}
 // Deserialize unmarshals an object from JSON.
 func (ju jsonUtil) Deserialize(object interface{}, body string) error {
 	decoder := json.NewDecoder(bytes.NewBufferString(body))
-	return exception.Wrap(decoder.Decode(object))
+	return exception.New(decoder.Decode(object))
 }
 
 // DeserializeFromReader unmashals an object from a json Reader.
 func (ju jsonUtil) DeserializeFromReader(object interface{}, body io.Reader) error {
-	return exception.Wrap(json.NewDecoder(body).Decode(object))
+	return exception.New(json.NewDecoder(body).Decode(object))
 }
 
 // DeserializeFromReadCloser unmashals an object from a json ReadCloser.
@@ -31,7 +31,7 @@ func (ju jsonUtil) DeserializeFromReadCloser(object interface{}, body io.ReadClo
 	defer body.Close()
 
 	decoder := json.NewDecoder(body)
-	return exception.Wrap(decoder.Decode(object))
+	return exception.New(decoder.Decode(object))
 }
 
 // Serialize marshals an object to json.

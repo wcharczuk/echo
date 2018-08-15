@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -26,6 +27,15 @@ func MustParseURL(rawURL string) *url.URL {
 		panic(err)
 	}
 	return u
+}
+
+// PathRedirectHandler returns a handler for AuthManager.RedirectHandler based on a path.
+func PathRedirectHandler(path string) func(*Ctx) *url.URL {
+	return func(ctx *Ctx) *url.URL {
+		u := *ctx.Request().URL
+		u.Path = fmt.Sprintf("/login")
+		return &u
+	}
 }
 
 // NestMiddleware reads the middleware variadic args and organizes the calls recursively in the order they appear.
@@ -61,27 +71,27 @@ func WriteNoContent(w http.ResponseWriter) error {
 func WriteRawContent(w http.ResponseWriter, statusCode int, content []byte) error {
 	w.WriteHeader(statusCode)
 	_, err := w.Write(content)
-	return exception.Wrap(err)
+	return exception.New(err)
 }
 
 // WriteJSON marshalls an object to json.
 func WriteJSON(w http.ResponseWriter, r *http.Request, statusCode int, response interface{}) error {
 	w.Header().Set(HeaderContentType, ContentTypeApplicationJSON)
 	w.WriteHeader(statusCode)
-	return exception.Wrap(json.NewEncoder(w).Encode(response))
+	return exception.New(json.NewEncoder(w).Encode(response))
 }
 
 // WriteXML marshalls an object to json.
 func WriteXML(w http.ResponseWriter, r *http.Request, statusCode int, response interface{}) error {
 	w.Header().Set(HeaderContentType, ContentTypeXML)
 	w.WriteHeader(statusCode)
-	return exception.Wrap(xml.NewEncoder(w).Encode(response))
+	return exception.New(xml.NewEncoder(w).Encode(response))
 }
 
 // DeserializeReaderAsJSON deserializes a post body as json to a given object.
 func DeserializeReaderAsJSON(object interface{}, body io.ReadCloser) error {
 	defer body.Close()
-	return exception.Wrap(json.NewDecoder(body).Decode(object))
+	return exception.New(json.NewDecoder(body).Decode(object))
 }
 
 // LocalIP returns the local server ip.
@@ -113,7 +123,7 @@ func SignSessionID(sessionID string, key []byte) ([]byte, error) {
 	mac := hmac.New(sha512.New, key)
 	_, err := mac.Write([]byte(sessionID))
 	if err != nil {
-		return nil, exception.Wrap(err)
+		return nil, exception.New(err)
 	}
 	return mac.Sum(nil), nil
 }

@@ -33,6 +33,7 @@ func New() *App {
 		redirectTrailingSlash: true,
 		recoverPanics:         true,
 		defaultHeaders:        DefaultHeaders,
+		shutdownGracePeriod:   DefaultShutdownGracePeriod,
 		views:                 views,
 		viewProvider:          vrp,
 		jsonProvider:          &JSONResultProvider{},
@@ -80,6 +81,8 @@ type App struct {
 
 	server   *http.Server
 	listener *net.TCPListener
+
+	shutdownGracePeriod time.Duration
 
 	// statics serve files at various routes
 	statics map[string]Fileserver
@@ -137,12 +140,25 @@ func (a *App) WithConfig(cfg *Config) *App {
 	a.WithViewResultProvider(&ViewResultProvider{views: a.Views()})
 	a.WithBaseURL(MustParseURL(cfg.GetBaseURL()))
 
+	a.WithShutdownGracePeriod(cfg.GetShutdownGracePeriod())
+
 	return a
 }
 
 // Running returns if the app is running.
 func (a *App) Running() (running bool) {
 	return atomic.LoadInt32(&a.running) == 1
+}
+
+// WithShutdownGracePeriod sets the shutdown grace period.
+func (a *App) WithShutdownGracePeriod(gracePeriod time.Duration) *App {
+	a.shutdownGracePeriod = gracePeriod
+	return a
+}
+
+// ShutdownGracePeriod is the grace period on shutdown.
+func (a *App) ShutdownGracePeriod() time.Duration {
+	return a.shutdownGracePeriod
 }
 
 // WithDefaultHeaders sets the default headers
@@ -391,12 +407,12 @@ func (a *App) SetTLSCertPair(tlsCert, tlsKey []byte) error {
 func (a *App) SetTLSCertPairFromFiles(tlsCertPath, tlsKeyPath string) error {
 	cert, err := ioutil.ReadFile(tlsCertPath)
 	if err != nil {
-		return exception.Wrap(err)
+		return exception.New(err)
 	}
 
 	key, err := ioutil.ReadFile(tlsKeyPath)
 	if err != nil {
-		return exception.Wrap(err)
+		return exception.New(err)
 	}
 
 	return a.SetTLSCertPair(cert, key)
@@ -620,7 +636,7 @@ func (a *App) Start() (err error) {
 	var listener net.Listener
 	listener, err = net.Listen("tcp", a.bindAddr)
 	if err != nil {
-		err = exception.Wrap(err)
+		err = exception.New(err)
 		return
 	}
 	a.listener = listener.(*net.TCPListener)
@@ -630,12 +646,18 @@ func (a *App) Start() (err error) {
 	}
 
 	a.setRunning()
-	keepAlive := TCPKeepAliveListener{a.listener}
+	keepAliveListener := TCPKeepAliveListener{a.listener}
+	var shutdownErr error
 	if a.server.TLSConfig != nil {
-		err = exception.Wrap(a.server.ServeTLS(keepAlive, "", ""))
+		shutdownErr = a.server.ServeTLS(keepAliveListener, "", "")
 	} else {
-		err = exception.Wrap(a.server.Serve(keepAlive))
+		shutdownErr = a.server.Serve(keepAliveListener)
 	}
+
+	if shutdownErr != nil && shutdownErr != http.ErrServerClosed {
+		err = exception.New(shutdownErr)
+	}
+
 	a.setStopped()
 	return
 }
@@ -651,17 +673,16 @@ func (a *App) Shutdown() error {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), a.shutdownGracePeriod)
 	defer cancel()
 
-	serverProtocol := "http"
-	if a.server.TLSConfig != nil {
-		serverProtocol = "https (tls)"
+	a.syncInfof("server shutting down")
+	a.server.SetKeepAlivesEnabled(false)
+	if err := a.server.Shutdown(ctx); err != nil {
+		return exception.New(err)
 	}
 
-	a.syncInfof("%s server shutting down", serverProtocol)
-	a.server.SetKeepAlivesEnabled(false)
-	return exception.Wrap(a.server.Shutdown(ctx))
+	return nil
 }
 
 // WithControllers registers given controllers and returns a reference to the app.
@@ -777,7 +798,7 @@ func (a *App) SetStaticRewriteRule(route, match string, action RewriteAction) er
 	if static, hasRoute := a.statics[mountedRoute]; hasRoute {
 		return static.AddRewriteRule(match, action)
 	}
-	return exception.Newf("no static fileserver mounted at route").WithMessagef("route: %s", route)
+	return exception.New("no static fileserver mounted at route").WithMessagef("route: %s", route)
 }
 
 // SetStaticHeader adds a header for the given static path.
@@ -788,7 +809,7 @@ func (a *App) SetStaticHeader(route, key, value string) error {
 		static.AddHeader(key, value)
 		return nil
 	}
-	return exception.Newf("no static fileserver mounted at route").WithMessagef("route: %s", mountedRoute)
+	return exception.New("no static fileserver mounted at route").WithMessagef("route: %s", mountedRoute)
 }
 
 // SetStaticMiddleware adds static middleware for a given route.
@@ -798,7 +819,7 @@ func (a *App) SetStaticMiddleware(route string, middlewares ...Middleware) error
 		static.SetMiddleware(middlewares...)
 		return nil
 	}
-	return exception.Newf("no static fileserver mounted at route").WithMessagef("route: %s", mountedRoute)
+	return exception.New("no static fileserver mounted at route").WithMessagef("route: %s", mountedRoute)
 }
 
 // ServeStatic serves files from the given file system root.
@@ -1027,7 +1048,7 @@ func (a *App) renderAction(action Action) Handler {
 		ctx := a.createCtx(response, r, route, p, state)
 		ctx.onRequestStart()
 		if a.log != nil {
-			a.log.Trigger(a.loggerRequestStartEvent(ctx))
+			a.log.Trigger(a.loggerHTTPRequestEvent(ctx))
 		}
 
 		result := action(ctx)
@@ -1054,7 +1075,7 @@ func (a *App) renderAction(action Action) Handler {
 
 		// effectively "request complete"
 		if a.log != nil {
-			a.log.Trigger(a.loggerRequestEvent(ctx))
+			a.log.Trigger(a.loggerHTTPResponseEvent(ctx))
 		}
 	}
 }
@@ -1079,8 +1100,8 @@ func (a *App) addHSTSHeader(w http.ResponseWriter) {
 	w.Header().Set(HeaderStrictTransportSecurity, strings.Join(parts, "; "))
 }
 
-func (a *App) loggerRequestStartEvent(ctx *Ctx) *logger.WebRequestEvent {
-	event := logger.NewWebRequestStartEvent(ctx.Request()).
+func (a *App) loggerHTTPRequestEvent(ctx *Ctx) *logger.HTTPRequestEvent {
+	event := logger.NewHTTPRequestEvent(ctx.Request()).
 		WithState(ctx.state)
 
 	if ctx.Route() != nil {
@@ -1089,11 +1110,11 @@ func (a *App) loggerRequestStartEvent(ctx *Ctx) *logger.WebRequestEvent {
 	return event
 }
 
-func (a *App) loggerRequestEvent(ctx *Ctx) *logger.WebRequestEvent {
-	event := logger.NewWebRequestEvent(ctx.Request()).
+func (a *App) loggerHTTPResponseEvent(ctx *Ctx) *logger.HTTPResponseEvent {
+	event := logger.NewHTTPResponseEvent(ctx.Request()).
 		WithStatusCode(ctx.statusCode).
 		WithElapsed(ctx.Elapsed()).
-		WithContentLength(int64(ctx.contentLength)).
+		WithContentLength(ctx.contentLength).
 		WithState(ctx.state)
 
 	if ctx.Route() != nil {
@@ -1109,11 +1130,15 @@ func (a *App) loggerRequestEvent(ctx *Ctx) *logger.WebRequestEvent {
 
 func (a *App) recover(w http.ResponseWriter, req *http.Request) {
 	if rcv := recover(); rcv != nil {
+		err := exception.New(rcv)
 		if a.log != nil {
-			a.log.Fatalf("%v", rcv)
+			a.log.Fatal(err)
 		}
+
 		if a.panicAction != nil {
 			a.handlePanic(w, req, rcv)
+		} else {
+			http.Error(w, "an internal server error occurred", http.StatusInternalServerError)
 		}
 	}
 }

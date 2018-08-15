@@ -40,13 +40,15 @@ func NewAuthManagerFromConfig(cfg *Config) *AuthManager {
 
 // AuthManager is a manager for sessions.
 type AuthManager struct {
-	useSessionCache      bool
-	sessionCache         *SessionCache
-	persistHandler       func(*Ctx, *Session, State) error
-	fetchHandler         func(sessionID string, state State) (*Session, error)
-	removeHandler        func(sessionID string, state State) error
-	validateHandler      func(*Session, State) error
-	loginRedirectHandler func(*Ctx) *url.URL
+	useSessionCache bool
+	sessionCache    *SessionCache
+	persistHandler  func(*Ctx, *Session, State) error
+	fetchHandler    func(sessionID string, state State) (*Session, error)
+	removeHandler   func(sessionID string, state State) error
+	validateHandler func(*Session, State) error
+
+	loginRedirectHandler     func(*Ctx) *url.URL
+	postLoginRedirectHandler func(*Ctx) *url.URL
 
 	log *logger.Logger
 
@@ -72,7 +74,9 @@ func (am *AuthManager) Login(userID string, ctx *Ctx) (session *Session, err err
 	var sessionID string
 	var secureSessionID string
 
+	// create a new session
 	sessionID = am.createSessionID()
+	// if we should issue a verification session id, create one too
 	if am.shouldIssueSecureSesssionID() {
 		secureSessionID, err = am.createSecureSessionID(sessionID)
 		if err != nil {
@@ -80,9 +84,13 @@ func (am *AuthManager) Login(userID string, ctx *Ctx) (session *Session, err err
 		}
 	}
 
+	// userID and sessionID are required
 	session = NewSession(userID, sessionID)
 	session.ExpiresUTC = am.GenerateSessionTimeout(ctx)
+	session.UserAgent = logger.GetUserAgent(ctx.request)
+	session.RemoteAddr = logger.GetRemoteAddr(ctx.request)
 
+	// call the perist handler if one's been provided
 	if am.persistHandler != nil {
 		err = am.persistHandler(ctx, session, ctx.state)
 		if err != nil {
@@ -90,14 +98,17 @@ func (am *AuthManager) Login(userID string, ctx *Ctx) (session *Session, err err
 		}
 	}
 
+	// if we are tracking sessions locally, add it to the cache.
 	if am.useSessionCache {
 		am.sessionCache.Upsert(session)
 	}
 
+	// inject cookies into the response
 	am.injectCookie(ctx, am.CookieName(), sessionID, session.ExpiresUTC)
 	if am.shouldIssueSecureSesssionID() {
 		am.injectCookie(ctx, am.SecureCookieName(), secureSessionID, session.ExpiresUTC)
 	}
+
 	return session, nil
 }
 
@@ -110,13 +121,15 @@ func (am *AuthManager) Logout(ctx *Ctx) error {
 		am.sessionCache.Remove(sessionID)
 	}
 
+	// issue the expiration cookies to the response
 	ctx.ExpireCookie(am.CookieName(), am.CookiePath())
 	if am.shouldIssueSecureSesssionID() {
 		ctx.ExpireCookie(am.SecureCookieName(), am.CookiePath())
 	}
+	// nil out the current session in the ctx
 	ctx.WithSession(nil)
 
-	// remove the session from a backing store
+	// call the remove handler if one has been provided
 	if am.removeHandler != nil {
 		return am.err(am.removeHandler(sessionID, ctx.state))
 	}
@@ -126,12 +139,16 @@ func (am *AuthManager) Logout(ctx *Ctx) error {
 // VerifySession checks a sessionID to see if it's valid.
 // It also handles updating a rolling expiry.
 func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
+	// pull the sessionID off the request
 	sessionID := am.readSessionID(ctx)
+
+	// validate the sessionID is formatted correctly
 	err := am.validateSessionID(sessionID)
 	if err != nil {
 		return nil, err
 	}
 
+	// validate the secure session id if it's required
 	var secureSessionID string
 	if am.shouldIssueSecureSesssionID() {
 		secureSessionID = am.readSecureSessionID(ctx)
@@ -141,11 +158,17 @@ func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
 		}
 	}
 
+	// pull the session from the cache
+	// or call the fetch handler.
+	// we call the fetch handler if we're using cached sessions
+	// and it just hasn't been loaded yet.
 	var session *Session
 	if am.useSessionCache {
 		session = am.sessionCache.Get(sessionID)
 	}
 
+	// call the fetch handler if it's been provided and
+	// the session is currently unset.
 	if session == nil && am.fetchHandler != nil {
 		session, err = am.fetchHandler(sessionID, ctx.state)
 		if err != nil {
@@ -153,6 +176,7 @@ func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
 		}
 	}
 
+	// if the session is invalid, expire the cookie(s)
 	if session == nil || session.IsZero() || session.IsExpired() {
 		ctx.ExpireCookie(am.CookieName(), DefaultCookiePath)
 		if am.shouldIssueSecureSesssionID() {
@@ -171,6 +195,7 @@ func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
 		return nil, nil
 	}
 
+	// call a custom validate handler if one's been provided.
 	if am.validateHandler != nil {
 		err = am.validateHandler(session, ctx.state)
 		if err != nil {
@@ -196,15 +221,16 @@ func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
 		}
 	}
 
+	// upsert the session
 	if am.useSessionCache {
 		am.sessionCache.Upsert(session)
 	}
 	return session, nil
 }
 
-// Redirect returns a redirect result for when auth fails and you need to
+// LoginRedirect returns a redirect result for when auth fails and you need to
 // send the user to a login page.
-func (am *AuthManager) Redirect(ctx *Ctx) Result {
+func (am *AuthManager) LoginRedirect(ctx *Ctx) Result {
 	if am.loginRedirectHandler != nil {
 		redirectTo := am.loginRedirectHandler(ctx)
 		if redirectTo != nil {
@@ -212,6 +238,19 @@ func (am *AuthManager) Redirect(ctx *Ctx) Result {
 		}
 	}
 	return ctx.DefaultResultProvider().NotAuthorized()
+}
+
+// PostLoginRedirect returns a redirect result for when auth fails and you need to
+// send the user to a login page.
+func (am *AuthManager) PostLoginRedirect(ctx *Ctx) Result {
+	if am.postLoginRedirectHandler != nil {
+		redirectTo := am.postLoginRedirectHandler(ctx)
+		if redirectTo != nil {
+			return ctx.Redirectf(redirectTo.String())
+		}
+	}
+	// the default authed redirect is the root.
+	return ctx.RedirectWithMethodf("GET", "/")
 }
 
 // --------------------------------------------------------------------------------
@@ -469,7 +508,7 @@ func (am *AuthManager) WithLoginRedirectHandler(handler func(*Ctx) *url.URL) *Au
 	return am
 }
 
-// SetLoginRedirectHandler sets the handler to determin where to redirect on not authorized attempts.
+// SetLoginRedirectHandler sets the handler to determine where to redirect on not authorized attempts.
 // It should return (nil) if you want to just show the `not_authorized` template, provided one is configured.
 func (am *AuthManager) SetLoginRedirectHandler(handler func(*Ctx) *url.URL) {
 	am.loginRedirectHandler = handler
@@ -478,6 +517,22 @@ func (am *AuthManager) SetLoginRedirectHandler(handler func(*Ctx) *url.URL) {
 // LoginRedirectHandler returns the login redirect handler.
 func (am *AuthManager) LoginRedirectHandler() func(*Ctx) *url.URL {
 	return am.loginRedirectHandler
+}
+
+// WithPostLoginRedirectHandler sets the post login redirect handler.
+func (am *AuthManager) WithPostLoginRedirectHandler(handler func(*Ctx) *url.URL) *AuthManager {
+	am.SetPostLoginRedirectHandler(handler)
+	return am
+}
+
+// SetPostLoginRedirectHandler sets the handler to determine where to redirect on login complete.
+func (am *AuthManager) SetPostLoginRedirectHandler(handler func(*Ctx) *url.URL) {
+	am.postLoginRedirectHandler = handler
+}
+
+// PostLoginRedirectHandler returns the redirect handler for login complete.
+func (am *AuthManager) PostLoginRedirectHandler() func(*Ctx) *url.URL {
+	return am.postLoginRedirectHandler
 }
 
 // SessionCache returns the session cache.

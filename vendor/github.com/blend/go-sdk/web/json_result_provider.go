@@ -49,7 +49,7 @@ func (jrp *JSONResultProvider) BadRequest(err error) Result {
 	if err != nil {
 		return &JSONResult{
 			StatusCode: http.StatusBadRequest,
-			Response:   err,
+			Response:   err.Error(),
 		}
 	}
 	return &JSONResult{

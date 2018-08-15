@@ -2,7 +2,6 @@ package web
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -156,12 +155,6 @@ func (mrb *MockRequestBuilder) WithPostedFile(postedFile PostedFile) *MockReques
 	return mrb
 }
 
-// WithTx sets the transaction for the request.
-func (mrb *MockRequestBuilder) WithTx(tx *sql.Tx, keys ...string) *MockRequestBuilder {
-	WithTx(mrb, tx, keys...)
-	return mrb
-}
-
 // State returns the underlying state.
 func (mrb *MockRequestBuilder) State() State {
 	return mrb.state
@@ -297,7 +290,7 @@ func (mrb *MockRequestBuilder) Response() (res *http.Response, err error) {
 		res = mrb.runHandler(mrb.app.notFoundHandler, req, route, params)
 		return
 	} else if route == nil {
-		err = exception.Newf("No route registered for %s %s", mrb.verb, mrb.path)
+		err = exception.New("No route registered").WithMessagef("verb: %s path: %s", mrb.verb, mrb.path)
 		return
 	}
 
