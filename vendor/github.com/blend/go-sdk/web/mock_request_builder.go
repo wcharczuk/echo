@@ -40,6 +40,9 @@ type MockRequestBuilder struct {
 	cookies     []*http.Cookie
 	postBody    []byte
 
+	basicAuthUsername string
+	basicAuthPassword string
+
 	postedFiles map[string]PostedFile
 
 	err error
@@ -58,6 +61,12 @@ func (mrb *MockRequestBuilder) WithErr(err error) *MockRequestBuilder {
 // Err rerturns an underlying error
 func (mrb *MockRequestBuilder) Err() error {
 	return mrb.err
+}
+
+// WithBasicAuth sets basic auth credentials for the request.
+func (mrb *MockRequestBuilder) WithBasicAuth(username, password string) *MockRequestBuilder {
+	mrb.basicAuthUsername, mrb.basicAuthPassword = username, password
+	return mrb
 }
 
 // Get is a shortcut for WithVerb("GET") WithPathf(pathFormat, args...)
@@ -195,6 +204,9 @@ func (mrb *MockRequestBuilder) Request() (*http.Request, error) {
 	req.RequestURI = reqURL.String()
 	req.Form = mrb.formValues
 	req.Header = http.Header{}
+	if len(mrb.basicAuthUsername) > 0 {
+		req.SetBasicAuth(mrb.basicAuthUsername, mrb.basicAuthPassword)
+	}
 
 	for key, values := range mrb.headers {
 		for _, value := range values {

@@ -609,8 +609,7 @@ func (l *Logger) FatalWithReq(err error, req *http.Request) error {
 
 // SyncFatalExit logs the result of a fatal error to std err and calls `exit(1)`
 func (l *Logger) SyncFatalExit(err error) {
-	l.Fatal(err)
-	l.Drain()
+	l.SyncFatal(err)
 	os.Exit(1)
 }
 

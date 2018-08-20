@@ -864,16 +864,31 @@ func (a *App) WithNotFoundHandler(handler Action) *App {
 	return a
 }
 
+// NotFoundHandler returns the not found handler.
+func (a *App) NotFoundHandler() Handler {
+	return a.notFoundHandler
+}
+
 // WithMethodNotAllowedHandler sets the not allowed handler.
 func (a *App) WithMethodNotAllowedHandler(handler Action) *App {
 	a.methodNotAllowedHandler = a.renderAction(handler)
 	return a
 }
 
+// MethodNotAllowedHandler returns the method not allowed handler.
+func (a *App) MethodNotAllowedHandler() Handler {
+	return a.methodNotAllowedHandler
+}
+
 // WithPanicAction sets the panic action.
 func (a *App) WithPanicAction(action PanicAction) *App {
 	a.panicAction = action
 	return a
+}
+
+// PanicAction returns the panic action.
+func (a *App) PanicAction() PanicAction {
+	return a.panicAction
 }
 
 // --------------------------------------------------------------------------------

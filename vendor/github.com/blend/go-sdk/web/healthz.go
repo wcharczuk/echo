@@ -37,7 +37,7 @@ const (
 	ListenerHealthz = "healthz"
 
 	// ErrHealthzAppUnset is a common error.
-	ErrHealthzAppUnset Error = "healthz app unset"
+	ErrHealthzAppUnset exception.Class = "healthz app unset"
 )
 
 // NewHealthz returns a new healthz.

@@ -265,38 +265,7 @@ const (
 	LenSessionID = 64
 	// LenSessionIDBase64 is the length of a session id base64 encoded.
 	LenSessionIDBase64 = 88
-
-	// ErrSessionIDEmpty is thrown if a session id is empty.
-	ErrSessionIDEmpty Error = "auth session id is empty"
-	// ErrSessionIDTooLong is thrown if a session id is too long.
-	ErrSessionIDTooLong Error = "auth session id is too long"
-	// ErrSecureSessionIDEmpty is an error that is thrown if a given secure session id is invalid.
-	ErrSecureSessionIDEmpty Error = "auth secure session id is empty"
-	// ErrSecureSessionIDTooLong is an error that is thrown if a given secure session id is invalid.
-	ErrSecureSessionIDTooLong Error = "auth secure session id is too long"
-	// ErrSecureSessionIDInvalid is an error that is thrown if a given secure session id is invalid.
-	ErrSecureSessionIDInvalid Error = "auth secure session id is invalid"
-
-	// ErrUnsetViewTemplate is an error that is thrown if a given secure session id is invalid.
-	ErrUnsetViewTemplate Error = "view result template is unset"
 )
-
-// IsErrSessionInvalid returns if an error is a session invalid error.
-func IsErrSessionInvalid(err error) bool {
-	if err == nil {
-		return false
-	}
-	switch err {
-	case ErrSessionIDEmpty,
-		ErrSessionIDTooLong,
-		ErrSecureSessionIDEmpty,
-		ErrSecureSessionIDTooLong,
-		ErrSecureSessionIDInvalid:
-		return true
-	default:
-		return false
-	}
-}
 
 // test keys
 const (

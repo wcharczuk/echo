@@ -42,7 +42,7 @@ func NewAuthManagerFromConfig(cfg *Config) *AuthManager {
 type AuthManager struct {
 	useSessionCache bool
 	sessionCache    *SessionCache
-	persistHandler  func(*Ctx, *Session, State) error
+	persistHandler  func(*Session, State) error
 	fetchHandler    func(sessionID string, state State) (*Session, error)
 	removeHandler   func(sessionID string, state State) error
 	validateHandler func(*Session, State) error
@@ -92,7 +92,7 @@ func (am *AuthManager) Login(userID string, ctx *Ctx) (session *Session, err err
 
 	// call the perist handler if one's been provided
 	if am.persistHandler != nil {
-		err = am.persistHandler(ctx, session, ctx.state)
+		err = am.persistHandler(session, ctx.state)
 		if err != nil {
 			return nil, am.err(err)
 		}
@@ -209,7 +209,7 @@ func (am *AuthManager) VerifySession(ctx *Ctx) (*Session, error) {
 	if am.shouldUpdateSessionExpiry() {
 		session.ExpiresUTC = am.GenerateSessionTimeout(ctx)
 		if am.persistHandler != nil {
-			err = am.persistHandler(ctx, session, ctx.state)
+			err = am.persistHandler(session, ctx.state)
 			if err != nil {
 				return nil, err
 			}
@@ -234,7 +234,7 @@ func (am *AuthManager) LoginRedirect(ctx *Ctx) Result {
 	if am.loginRedirectHandler != nil {
 		redirectTo := am.loginRedirectHandler(ctx)
 		if redirectTo != nil {
-			return ctx.Redirectf(redirectTo.String())
+			return ctx.Redirect(redirectTo.String())
 		}
 	}
 	return ctx.DefaultResultProvider().NotAuthorized()
@@ -250,7 +250,7 @@ func (am *AuthManager) PostLoginRedirect(ctx *Ctx) Result {
 		}
 	}
 	// the default authed redirect is the root.
-	return ctx.RedirectWithMethodf("GET", "/")
+	return ctx.RedirectWithMethod("GET", "/")
 }
 
 // --------------------------------------------------------------------------------
@@ -434,19 +434,19 @@ func (am *AuthManager) SecureCookieName() string {
 }
 
 // WithPersistHandler sets the persist handler.
-func (am *AuthManager) WithPersistHandler(handler func(*Ctx, *Session, State) error) *AuthManager {
+func (am *AuthManager) WithPersistHandler(handler func(*Session, State) error) *AuthManager {
 	am.SetPersistHandler(handler)
 	return am
 }
 
 // SetPersistHandler sets the persist handler.
 // It must be able to both create sessions and update sessions if the expiry changes.
-func (am *AuthManager) SetPersistHandler(handler func(*Ctx, *Session, State) error) {
+func (am *AuthManager) SetPersistHandler(handler func(*Session, State) error) {
 	am.persistHandler = handler
 }
 
 // PersistHandler returns the persist handler.
-func (am *AuthManager) PersistHandler() func(*Ctx, *Session, State) error {
+func (am *AuthManager) PersistHandler() func(*Session, State) error {
 	return am.persistHandler
 }
 

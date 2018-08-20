@@ -47,6 +47,7 @@ func GracefulShutdown(app *App) error {
 		<-server
 	case <-server: // if the server exited
 		close(shutdownAbort) // quit the signal listener
+		<-shutdownComplete
 	}
 
 	if len(errors) > 0 {

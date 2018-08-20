@@ -5,38 +5,38 @@
 		{
 			"checksumSHA1": "BCsGDAgNrRZzd89cTPXCF3SKu3A=",
 			"path": "github.com/blend/go-sdk/env",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		},
 		{
 			"checksumSHA1": "/R25WbDkBtCSWvrM3aQ3Yv8xE1A=",
 			"path": "github.com/blend/go-sdk/exception",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		},
 		{
-			"checksumSHA1": "FJksBwRKJNsMFKqNdfZ2hPeqbX8=",
+			"checksumSHA1": "6hTncfoDhwOTInqkglh5E8wtbYQ=",
 			"path": "github.com/blend/go-sdk/logger",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		},
 		{
 			"checksumSHA1": "WKtGuSwmwGxXZvIFg69JbVlpTrM=",
 			"path": "github.com/blend/go-sdk/util",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		},
 		{
 			"checksumSHA1": "2Fvz2yIAG+sTCK2/qAMZvCMChCo=",
 			"path": "github.com/blend/go-sdk/uuid",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		},
 		{
-			"checksumSHA1": "SgkfjELWX5pcmwtfKQdRA5vCZps=",
+			"checksumSHA1": "hwmj6pgKicykewxLy+trxOk1iFM=",
 			"path": "github.com/blend/go-sdk/web",
-			"revision": "8f7c49fef758a9021e493bd50245ffb08f09a83c",
-			"revisionTime": "2018-08-15T22:44:57Z"
+			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
+			"revisionTime": "2018-08-20T21:12:57Z"
 		}
 	],
 	"rootPath": "github.com/wcharczuk/echo"
