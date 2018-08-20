@@ -102,5 +102,7 @@ func main() {
 		return r.JSON().OK()
 	})
 
-	web.GracefulShutdown(app)
+	if err := web.GracefulShutdown(app); err != nil {
+		log.SyncFatalExit(err)
+	}
 }
