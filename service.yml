@@ -1,2 +1,15 @@
-accessibility: private
+accessibility: protected
 containerPort: 5000
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 5000
+  initialDelaySeconds: 1
+  periodSeconds: 5
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 5000
+  periodSeconds: 5
