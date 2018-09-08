@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -35,9 +36,10 @@ type Config struct {
 	HSTSIncludeSubDomains *bool `json:"hstsIncludeSubdomains,omitempty" yaml:"hstsIncludeSubdomains,omitempty"`
 	HSTSPreload           *bool `json:"hstsPreload,omitempty" yaml:"hstsPreload,omitempty"`
 
-	// UseSessionCache enables or disables the in memory session cache.
-	// Note: If the session cache is disabled you *must* provide a fetch handler.
-	UseSessionCache *bool `json:"useSessionCache,omitempty" yaml:"useSessionCache,omitempty" env:"USE_SESSION_CACHE"`
+	// AuthManagerMode is a mode designation for the auth manager.
+	AuthManagerMode string `json:"authManagerMode" yaml:"authManagerMode"`
+	// AuthSecret is a secret key to use with auth management.
+	AuthSecret string `json:"authSecret" yaml:"authSecret" env:"AUTH_SECRET"`
 	// SessionTimeout is a fixed duration to use when calculating hard or rolling deadlines.
 	SessionTimeout time.Duration `json:"sessionTimeout,omitempty" yaml:"sessionTimeout,omitempty" env:"SESSION_TIMEOUT"`
 	// SessionTimeoutIsAbsolute determines if the session timeout is a hard deadline or if it gets pushed forward with usage.
@@ -49,13 +51,6 @@ type Config struct {
 	CookieName string `json:"cookieName,omitempty" yaml:"cookieName,omitempty" env:"COOKIE_NAME"`
 	// CookiePath is the path on the cookie to issue with sessions.
 	CookiePath string `json:"cookiePath,omitempty" yaml:"cookiePath,omitempty" env:"COOKIE_PATH"`
-
-	// AuthSecret is a key to use to encrypt the sessionID as a second factor cookie.
-	AuthSecret string `json:"authSecret,omitempty" yaml:"authSecret,omitempty" env:"AUTH_SECRET"`
-	// SecureCookieHTTPS determines if we should flip the `https only` flag on issued secure cookies.
-	SecureCookieHTTPSOnly *bool `json:"secureCookieHTTPSOnly,omitempty" yaml:"secureCookieHTTPSOnly,omitempty" env:"SECURE_COOKIE_HTTPS_ONLY"`
-	// SecureCookieName is the name of the secure cookie to issue with sessions.
-	SecureCookieName string `json:"secureCookieName,omitempty" yaml:"secureCookieName,omitempty" env:"SECURE_COOKIE_NAME"`
 
 	// DefaultHeaders are included on any responses. The app ships with a set of default headers, which you can augment with this property.
 	DefaultHeaders map[string]string `json:"defaultHeaders,omitempty" yaml:"defaultHeaders,omitempty"`
@@ -183,34 +178,18 @@ func (c Config) GetHSTSPreload(inherited ...bool) bool {
 	return util.Coalesce.Bool(c.HSTSPreload, DefaultHSTSPreload, inherited...)
 }
 
-// GetMaxHeaderBytes returns the maximum header size in bytes or a default.
-func (c Config) GetMaxHeaderBytes(defaults ...int) int {
-	return util.Coalesce.Int(c.MaxHeaderBytes, DefaultMaxHeaderBytes, defaults...)
+// GetAuthManagerMode returns the auth manager mode.
+func (c Config) GetAuthManagerMode(inherited ...string) string {
+	return util.Coalesce.String(c.AuthManagerMode, AuthManagerModeServer, inherited...)
 }
 
-// GetReadTimeout gets a property.
-func (c Config) GetReadTimeout(defaults ...time.Duration) time.Duration {
-	return util.Coalesce.Duration(c.ReadTimeout, DefaultReadTimeout, defaults...)
-}
-
-// GetReadHeaderTimeout gets a property.
-func (c Config) GetReadHeaderTimeout(defaults ...time.Duration) time.Duration {
-	return util.Coalesce.Duration(c.ReadHeaderTimeout, DefaultReadHeaderTimeout, defaults...)
-}
-
-// GetWriteTimeout gets a property.
-func (c Config) GetWriteTimeout(defaults ...time.Duration) time.Duration {
-	return util.Coalesce.Duration(c.WriteTimeout, DefaultWriteTimeout, defaults...)
-}
-
-// GetIdleTimeout gets a property.
-func (c Config) GetIdleTimeout(defaults ...time.Duration) time.Duration {
-	return util.Coalesce.Duration(c.IdleTimeout, DefaultIdleTimeout, defaults...)
-}
-
-// GetUseSessionCache returns a property or a default.
-func (c Config) GetUseSessionCache(defaults ...bool) bool {
-	return util.Coalesce.Bool(c.UseSessionCache, DefaultUseSessionCache, defaults...)
+// GetAuthSecret returns a property or a default.
+func (c Config) GetAuthSecret(defaults ...[]byte) []byte {
+	decoded, err := base64.StdEncoding.DecodeString(c.AuthSecret)
+	if err != nil {
+		panic(err)
+	}
+	return decoded
 }
 
 // GetSessionTimeout returns a property or a default.
@@ -238,23 +217,29 @@ func (c Config) GetCookiePath(defaults ...string) string {
 	return util.Coalesce.String(c.CookiePath, DefaultCookiePath, defaults...)
 }
 
-// GetAuthSecret returns a property or a default.
-func (c Config) GetAuthSecret(defaults ...[]byte) []byte {
-	decoded, err := Base64Decode(c.AuthSecret)
-	if err != nil {
-		panic(err)
-	}
-	return decoded
+// GetMaxHeaderBytes returns the maximum header size in bytes or a default.
+func (c Config) GetMaxHeaderBytes(defaults ...int) int {
+	return util.Coalesce.Int(c.MaxHeaderBytes, DefaultMaxHeaderBytes, defaults...)
 }
 
-// GetSecureCookieHTTPSOnly returns a property or a default.
-func (c Config) GetSecureCookieHTTPSOnly(defaults ...bool) bool {
-	return util.Coalesce.Bool(c.SecureCookieHTTPSOnly, c.GetCookieHTTPSOnly(), defaults...)
+// GetReadTimeout gets a property.
+func (c Config) GetReadTimeout(defaults ...time.Duration) time.Duration {
+	return util.Coalesce.Duration(c.ReadTimeout, DefaultReadTimeout, defaults...)
 }
 
-// GetSecureCookieName returns a property or a default.
-func (c Config) GetSecureCookieName(defaults ...string) string {
-	return util.Coalesce.String(c.SecureCookieName, DefaultSecureCookieName, defaults...)
+// GetReadHeaderTimeout gets a property.
+func (c Config) GetReadHeaderTimeout(defaults ...time.Duration) time.Duration {
+	return util.Coalesce.Duration(c.ReadHeaderTimeout, DefaultReadHeaderTimeout, defaults...)
+}
+
+// GetWriteTimeout gets a property.
+func (c Config) GetWriteTimeout(defaults ...time.Duration) time.Duration {
+	return util.Coalesce.Duration(c.WriteTimeout, DefaultWriteTimeout, defaults...)
+}
+
+// GetIdleTimeout gets a property.
+func (c Config) GetIdleTimeout(defaults ...time.Duration) time.Duration {
+	return util.Coalesce.Duration(c.IdleTimeout, DefaultIdleTimeout, defaults...)
 }
 
 // GetShutdownGracePeriod gets the shutdown grace period.

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/blend/go-sdk/webutil"
 )
 
 // FormatFileSize returns a string representation of a file size in bytes.
@@ -21,7 +23,7 @@ func FormatFileSize(sizeBytes int) string {
 
 // TextWriteHTTPRequest is a helper method to write request start events to a writer.
 func TextWriteHTTPRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request) {
-	if ip := GetRemoteAddr(req); len(ip) > 0 {
+	if ip := webutil.GetRemoteAddr(req); len(ip) > 0 {
 		buf.WriteString(ip)
 		buf.WriteRune(RuneSpace)
 	}
@@ -32,7 +34,7 @@ func TextWriteHTTPRequest(tf TextFormatter, buf *bytes.Buffer, req *http.Request
 
 // TextWriteHTTPResponse is a helper method to write request complete events to a writer.
 func TextWriteHTTPResponse(tf TextFormatter, buf *bytes.Buffer, req *http.Request, statusCode, contentLength int, contentType string, elapsed time.Duration) {
-	buf.WriteString(GetRemoteAddr(req))
+	buf.WriteString(webutil.GetRemoteAddr(req))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(tf.Colorize(req.Method, ColorBlue))
 	buf.WriteRune(RuneSpace)
@@ -41,8 +43,10 @@ func TextWriteHTTPResponse(tf TextFormatter, buf *bytes.Buffer, req *http.Reques
 	buf.WriteString(tf.ColorizeByStatusCode(statusCode, strconv.Itoa(statusCode)))
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(elapsed.String())
-	buf.WriteRune(RuneSpace)
-	buf.WriteString(contentType)
+	if len(contentType) > 0 {
+		buf.WriteRune(RuneSpace)
+		buf.WriteString(contentType)
+	}
 	buf.WriteRune(RuneSpace)
 	buf.WriteString(FormatFileSize(contentLength))
 }
@@ -50,7 +54,7 @@ func TextWriteHTTPResponse(tf TextFormatter, buf *bytes.Buffer, req *http.Reques
 // JSONWriteHTTPRequest marshals a request start as json.
 func JSONWriteHTTPRequest(req *http.Request) JSONObj {
 	return JSONObj{
-		"ip":   GetRemoteAddr(req),
+		"ip":   webutil.GetRemoteAddr(req),
 		"verb": req.Method,
 		"path": req.URL.Path,
 		"host": req.Host,
@@ -60,7 +64,7 @@ func JSONWriteHTTPRequest(req *http.Request) JSONObj {
 // JSONWriteHTTPResponse marshals a request as json.
 func JSONWriteHTTPResponse(req *http.Request, statusCode, contentLength int, contentType, contentEncoding string, elapsed time.Duration) JSONObj {
 	return JSONObj{
-		"ip":              GetRemoteAddr(req),
+		"ip":              webutil.GetRemoteAddr(req),
 		"verb":            req.Method,
 		"path":            req.URL.Path,
 		"host":            req.Host,

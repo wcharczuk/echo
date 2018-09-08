@@ -9,37 +9,35 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"net/url"
 
+	"github.com/blend/go-sdk/async"
 	"github.com/blend/go-sdk/env"
 	"github.com/blend/go-sdk/exception"
 	"github.com/blend/go-sdk/logger"
+	"github.com/blend/go-sdk/util"
+	"github.com/blend/go-sdk/webutil"
 )
 
 // New returns a new app.
 func New() *App {
 	views := NewViewCache()
-	vrp := &ViewResultProvider{views: views}
-
 	return &App{
-		auth:                  NewAuthManager(),
+		latch:                 async.NewLatch(),
+		auth:                  &AuthManager{},
 		bindAddr:              DefaultBindAddr,
-		state:                 map[string]interface{}{},
+		state:                 State{},
 		statics:               map[string]Fileserver{},
 		readTimeout:           DefaultReadTimeout,
+		writeTimeout:          DefaultWriteTimeout,
 		redirectTrailingSlash: true,
 		recoverPanics:         true,
 		defaultHeaders:        DefaultHeaders,
 		shutdownGracePeriod:   DefaultShutdownGracePeriod,
 		views:                 views,
-		viewProvider:          vrp,
-		jsonProvider:          &JSONResultProvider{},
-		xmlProvider:           &XMLResultProvider{},
-		textProvider:          &TextResultProvider{},
-		started:               make(chan struct{}),
+		defaultResultProvider: views,
 	}
 }
 
@@ -55,6 +53,8 @@ func NewFromConfig(cfg *Config) *App {
 
 // App is the server for the app.
 type App struct {
+	latch *async.Latch
+
 	cfg *Config
 
 	log   *logger.Logger
@@ -71,13 +71,8 @@ type App struct {
 
 	tlsConfig *tls.Config
 
-	defaultHeaders map[string]string
-
+	defaultHeaders     map[string]string
 	didRunStartupTasks bool
-	onStartDelegate    AppStartDelegate
-
-	started chan struct{}
-	running int32
 
 	server   *http.Server
 	listener *net.TCPListener
@@ -96,12 +91,9 @@ type App struct {
 	handleMethodNotAllowed  bool
 
 	defaultMiddleware []Middleware
+	tracer            Tracer
 
 	defaultResultProvider ResultProvider
-	viewProvider          *ViewResultProvider
-	jsonProvider          *JSONResultProvider
-	xmlProvider           *XMLResultProvider
-	textProvider          *TextResultProvider
 
 	maxHeaderBytes    int
 	readTimeout       time.Duration
@@ -109,9 +101,19 @@ type App struct {
 	writeTimeout      time.Duration
 	idleTimeout       time.Duration
 
-	state map[string]interface{}
+	state State
 
 	recoverPanics bool
+}
+
+// Latch returns the app lifecycle latch.
+func (a *App) Latch() *async.Latch {
+	return a.latch
+}
+
+// NotifyStarted returns the notify started chan.
+func (a *App) NotifyStarted() <-chan struct{} {
+	return a.latch.NotifyStarted()
 }
 
 // WithConfig sets the config and applies the config's setting.
@@ -137,17 +139,10 @@ func (a *App) WithConfig(cfg *Config) *App {
 
 	a.WithAuth(NewAuthManagerFromConfig(cfg))
 	a.WithViews(NewViewCacheFromConfig(&cfg.Views))
-	a.WithViewResultProvider(&ViewResultProvider{views: a.Views()})
-	a.WithBaseURL(MustParseURL(cfg.GetBaseURL()))
-
+	a.WithDefaultResultProvider(a.Views())
+	a.WithBaseURL(webutil.MustParseURL(cfg.GetBaseURL()))
 	a.WithShutdownGracePeriod(cfg.GetShutdownGracePeriod())
-
 	return a
-}
-
-// Running returns if the app is running.
-func (a *App) Running() (running bool) {
-	return atomic.LoadInt32(&a.running) == 1
 }
 
 // WithShutdownGracePeriod sets the shutdown grace period.
@@ -519,21 +514,6 @@ func (a *App) Logger() *logger.Logger {
 // It also sets underlying loggers in any child resources like providers and the auth manager.
 func (a *App) WithLogger(log *logger.Logger) *App {
 	a.log = log
-	if a.viewProvider != nil {
-		a.viewProvider.log = log
-	}
-	if a.jsonProvider != nil {
-		a.jsonProvider.log = log
-	}
-	if a.xmlProvider != nil {
-		a.xmlProvider.log = log
-	}
-	if a.textProvider != nil {
-		a.textProvider.log = log
-	}
-	if a.auth != nil {
-		a.auth.log = log
-	}
 	return a
 }
 
@@ -548,10 +528,15 @@ func (a *App) DefaultMiddleware() []Middleware {
 	return a.defaultMiddleware
 }
 
-// OnStart lets you register a task that is run before the server starts.
-// Typically this delegate sets up the database connection and other init items.
-func (a *App) OnStart(action AppStartDelegate) {
-	a.onStartDelegate = action
+// WithTracer sets the tracer.
+func (a *App) WithTracer(tracer Tracer) *App {
+	a.tracer = tracer
+	return a
+}
+
+// Tracer returns the tracer.
+func (a *App) Tracer() Tracer {
+	return a.tracer
 }
 
 // CreateServer returns the basic http.Server for the app.
@@ -584,6 +569,15 @@ func (a *App) Listener() *net.TCPListener {
 	return a.listener
 }
 
+// StartupTasks runs common startup tasks.
+func (a *App) StartupTasks() error {
+	if a.didRunStartupTasks {
+		return nil
+	}
+	a.didRunStartupTasks = true
+	return a.views.Initialize()
+}
+
 // Start starts the server and binds to the given address.
 func (a *App) Start() (err error) {
 	start := time.Now()
@@ -601,14 +595,6 @@ func (a *App) Start() (err error) {
 
 	if a.server == nil {
 		a.server = a.CreateServer()
-	}
-
-	// run the provided startup delegate.
-	if a.onStartDelegate != nil {
-		err = a.onStartDelegate(a)
-		if err != nil {
-			return
-		}
 	}
 
 	// initialize the view cache.
@@ -645,31 +631,25 @@ func (a *App) Start() (err error) {
 		a.log.SyncTrigger(NewAppEvent(AppStartComplete).WithApp(a).WithElapsed(time.Since(start)))
 	}
 
-	a.setRunning()
 	keepAliveListener := TCPKeepAliveListener{a.listener}
 	var shutdownErr error
+	a.latch.Started()
 	if a.server.TLSConfig != nil {
 		shutdownErr = a.server.ServeTLS(keepAliveListener, "", "")
 	} else {
 		shutdownErr = a.server.Serve(keepAliveListener)
 	}
-
 	if shutdownErr != nil && shutdownErr != http.ErrServerClosed {
 		err = exception.New(shutdownErr)
 	}
-
-	a.setStopped()
+	a.latch.Stopping()
+	a.latch.Stopped()
 	return
-}
-
-// Started returns a channel signalling the app has started.
-func (a *App) Started() <-chan struct{} {
-	return a.started
 }
 
 // Shutdown stops the server.
 func (a *App) Shutdown() error {
-	if !a.Running() {
+	if !a.Latch().IsRunning() {
 		return nil
 	}
 
@@ -701,50 +681,6 @@ func (a *App) Register(c Controller) {
 // --------------------------------------------------------------------------------
 // Result Providers
 // --------------------------------------------------------------------------------
-
-// WithViewResultProvider sets the view result provider.
-func (a *App) WithViewResultProvider(vrp *ViewResultProvider) *App {
-	a.viewProvider = vrp
-	return a
-}
-
-// ViewResultProvider returns the view result provider.
-func (a *App) ViewResultProvider() *ViewResultProvider {
-	return a.viewProvider
-}
-
-// WithJSONResultProvider sets the json result provider.
-func (a *App) WithJSONResultProvider(jrp *JSONResultProvider) *App {
-	a.jsonProvider = jrp
-	return a
-}
-
-// JSONResultProvider returns the json result provider.
-func (a *App) JSONResultProvider() *JSONResultProvider {
-	return a.jsonProvider
-}
-
-// WithXMLResultProvider sets the xml result provider.
-func (a *App) WithXMLResultProvider(xrp *XMLResultProvider) *App {
-	a.xmlProvider = xrp
-	return a
-}
-
-// XMLResultProvider returns the xml result provider.
-func (a *App) XMLResultProvider() *XMLResultProvider {
-	return a.xmlProvider
-}
-
-// WithTextResultProvider sets the text result provider.
-func (a *App) WithTextResultProvider(trp *TextResultProvider) *App {
-	a.textProvider = trp
-	return a
-}
-
-// TextResultProvider returns the text result provider.
-func (a *App) TextResultProvider() *TextResultProvider {
-	return a.textProvider
-}
 
 // WithDefaultResultProvider sets the default result provider.
 func (a *App) WithDefaultResultProvider(drp ResultProvider) *App {
@@ -895,7 +831,16 @@ func (a *App) PanicAction() PanicAction {
 // Testing Methods
 // --------------------------------------------------------------------------------
 
-// Mock returns a request bulider to facilitate mocking requests.
+// Mock returns a request bulider to facilitate mocking requests against the app
+// without having to start it and bind it to a port.
+/*
+An example mock request that hits an already registered "GET" route at "/foo":
+
+	assert.Nil(app.Mock().Get("/").Execute())
+
+This will assert that the request completes successfully, but does not return the
+response.
+*/
 func (a *App) Mock() *MockRequestBuilder {
 	return NewMockRequestBuilder(a).WithErr(a.StartupTasks())
 }
@@ -905,6 +850,14 @@ func (a *App) Mock() *MockRequestBuilder {
 // --------------------------------------------------------------------------------
 
 // GET registers a GET request handler.
+/*
+Routes should be registered in the form:
+
+	app.GET("/myroute", myAction, myMiddleware...)
+
+It is important to note that routes are registered in order and
+cannot have any wildcards inside the routes.
+*/
 func (a *App) GET(path string, action Action, middleware ...Middleware) {
 	a.Handle("GET", path, a.renderAction(a.middlewarePipeline(action, middleware...)))
 }
@@ -968,6 +921,10 @@ func (a *App) Lookup(method, path string) (route *Route, params RouteParameters,
 	return nil, nil, false
 }
 
+// --------------------------------------------------------------------------------
+// Request Pipeline
+// --------------------------------------------------------------------------------
+
 // ServeHTTP makes the router implement the http.Handler interface.
 func (a *App) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if a.recoverPanics {
@@ -1013,10 +970,7 @@ func (a *App) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				if a.methodNotAllowedHandler != nil {
 					a.methodNotAllowedHandler(w, req, nil, nil, nil)
 				} else {
-					http.Error(w,
-						http.StatusText(http.StatusMethodNotAllowed),
-						http.StatusMethodNotAllowed,
-					)
+					http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 				}
 				return
 			}
@@ -1031,25 +985,12 @@ func (a *App) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// --------------------------------------------------------------------------------
-// Request Pipeline
-// --------------------------------------------------------------------------------
-
 // renderAction is the translation step from Action to Handler.
 // this is where the bulk of the "pipeline" happens.
 func (a *App) renderAction(action Action) Handler {
 	return func(w http.ResponseWriter, r *http.Request, route *Route, p RouteParameters, state State) {
 		var err error
-
-		if len(a.defaultHeaders) > 0 {
-			for key, value := range a.defaultHeaders {
-				w.Header().Set(key, value)
-			}
-		}
-
-		if a.hsts {
-			a.addHSTSHeader(w)
-		}
+		var tf TraceFinisher
 
 		var response ResponseWriter
 		if strings.Contains(r.Header.Get(HeaderAcceptEncoding), ContentEncodingGZIP) {
@@ -1062,135 +1003,71 @@ func (a *App) renderAction(action Action) Handler {
 
 		ctx := a.createCtx(response, r, route, p, state)
 		ctx.onRequestStart()
+		if a.tracer != nil {
+			tf = a.tracer.Start(ctx)
+		}
 		if a.log != nil {
-			a.log.Trigger(a.loggerHTTPRequestEvent(ctx))
+			a.log.Trigger(a.httpRequestEvent(ctx))
+		}
+
+		if len(a.defaultHeaders) > 0 {
+			for key, value := range a.defaultHeaders {
+				response.Header().Set(key, value)
+			}
+		}
+
+		if a.hsts {
+			a.addHSTSHeader(response)
 		}
 
 		result := action(ctx)
 		if result != nil {
-			err = result.Render(ctx)
-			if err != nil {
-				a.logError(err)
+			// check for a prerender step
+			// errors returned here are typically fatal, and should
+			// be passed to a trace handler.
+			if typed, ok := result.(ResultPreRender); ok {
+				err = typed.PreRender(ctx)
+				if err != nil {
+					a.logFatal(err)
+				}
 			}
+			a.logError(result.Render(ctx))
 		}
 
-		ctx.onRequestEnd()
-		ctx.setLoggedStatusCode(response.StatusCode())
-		ctx.setLoggedContentLength(response.ContentLength())
-
-		err = response.Close()
-		if err != nil && err != http.ErrBodyNotAllowed {
-			a.logError(err)
-		}
-
-		// call the cancel func if it's set.
-		if ctx.cancel != nil {
-			ctx.cancel()
-		}
+		ctx.setStatusCode(response.StatusCode())
+		ctx.setContentLength(response.ContentLength())
+		ctx.onRequestFinish()
+		a.logError(response.Close())
 
 		// effectively "request complete"
 		if a.log != nil {
-			a.log.Trigger(a.loggerHTTPResponseEvent(ctx))
+			a.log.Trigger(a.httpResponseEvent(ctx))
+		}
+		if tf != nil {
+			tf.Finish(ctx, err)
 		}
 	}
-}
-
-// StartupTasks runs common startup tasks.
-func (a *App) StartupTasks() error {
-	if a.didRunStartupTasks {
-		return nil
-	}
-	a.didRunStartupTasks = true
-	return a.views.Initialize()
-}
-
-func (a *App) addHSTSHeader(w http.ResponseWriter) {
-	parts := []string{fmt.Sprintf(HSTSMaxAgeFormat, a.hstsMaxAgeSeconds)}
-	if a.hstsIncludeSubdomains {
-		parts = append(parts, HSTSIncludeSubDomains)
-	}
-	if a.hstsPreload {
-		parts = append(parts, HSTSPreload)
-	}
-	w.Header().Set(HeaderStrictTransportSecurity, strings.Join(parts, "; "))
-}
-
-func (a *App) loggerHTTPRequestEvent(ctx *Ctx) *logger.HTTPRequestEvent {
-	event := logger.NewHTTPRequestEvent(ctx.Request()).
-		WithState(ctx.state)
-
-	if ctx.Route() != nil {
-		event = event.WithRoute(ctx.Route().String())
-	}
-	return event
-}
-
-func (a *App) loggerHTTPResponseEvent(ctx *Ctx) *logger.HTTPResponseEvent {
-	event := logger.NewHTTPResponseEvent(ctx.Request()).
-		WithStatusCode(ctx.statusCode).
-		WithElapsed(ctx.Elapsed()).
-		WithContentLength(ctx.contentLength).
-		WithState(ctx.state)
-
-	if ctx.Route() != nil {
-		event = event.WithRoute(ctx.Route().String())
-	}
-
-	if ctx.Response().Header() != nil {
-		event = event.WithContentType(ctx.Response().Header().Get(HeaderContentType))
-		event = event.WithContentEncoding(ctx.Response().Header().Get(HeaderContentEncoding))
-	}
-	return event
-}
-
-func (a *App) recover(w http.ResponseWriter, req *http.Request) {
-	if rcv := recover(); rcv != nil {
-		err := exception.New(rcv)
-		if a.log != nil {
-			a.log.Fatal(err)
-		}
-
-		if a.panicAction != nil {
-			a.handlePanic(w, req, rcv)
-		} else {
-			http.Error(w, "an internal server error occurred", http.StatusInternalServerError)
-		}
-	}
-}
-
-func (a *App) handlePanic(w http.ResponseWriter, r *http.Request, err interface{}) {
-	a.renderAction(func(ctx *Ctx) Result {
-		if a.log != nil {
-			a.log.Fatalf("%v", err)
-		}
-		return a.panicAction(ctx, err)
-	})(w, r, nil, nil, nil)
 }
 
 func (a *App) createCtx(w ResponseWriter, r *http.Request, route *Route, p RouteParameters, s State) *Ctx {
 	ctx := &Ctx{
-		response:        w,
-		request:         r,
-		app:             a,
-		route:           route,
-		routeParameters: p,
-		state:           s,
-		auth:            a.auth,
-		log:             a.log,
-		view:            a.viewProvider,
-		json:            a.jsonProvider,
-		xml:             a.xmlProvider,
-		text:            a.textProvider,
+		id:                    util.String.RandomLetters(12),
+		tracer:                a.tracer,
+		response:              w,
+		request:               r,
+		app:                   a,
+		views:                 a.views,
+		route:                 route,
+		routeParameters:       p,
+		state:                 s,
+		auth:                  a.auth,
+		log:                   a.log,
 		defaultResultProvider: a.defaultResultProvider,
-	}
-
-	if ctx.defaultResultProvider == nil {
-		ctx.defaultResultProvider = a.textProvider
 	}
 	if ctx.state == nil {
 		ctx.state = State{}
 	}
-	if a.state != nil && len(a.state) > 0 {
+	if len(a.state) > 0 {
 		for key, value := range a.state {
 			ctx.state[key] = value
 		}
@@ -1257,6 +1134,76 @@ func (a *App) allowed(path, reqMethod string) (allow string) {
 	return
 }
 
+func (a *App) addHSTSHeader(w http.ResponseWriter) {
+	parts := []string{fmt.Sprintf(HSTSMaxAgeFormat, a.hstsMaxAgeSeconds)}
+	if a.hstsIncludeSubdomains {
+		parts = append(parts, HSTSIncludeSubDomains)
+	}
+	if a.hstsPreload {
+		parts = append(parts, HSTSPreload)
+	}
+	w.Header().Set(HeaderStrictTransportSecurity, strings.Join(parts, "; "))
+}
+
+func (a *App) httpRequestEvent(ctx *Ctx) *logger.HTTPRequestEvent {
+	event := logger.NewHTTPRequestEvent(ctx.Request()).
+		WithState(ctx.state)
+	event.SetEntity(ctx.ID())
+	if ctx.Route() != nil {
+		event = event.WithRoute(ctx.Route().String())
+	}
+	return event
+}
+
+func (a *App) httpResponseEvent(ctx *Ctx) *logger.HTTPResponseEvent {
+	event := logger.NewHTTPResponseEvent(ctx.Request()).
+		WithStatusCode(ctx.statusCode).
+		WithElapsed(ctx.Elapsed()).
+		WithContentLength(ctx.contentLength).
+		WithState(ctx.state)
+	event.SetEntity(ctx.ID())
+
+	if ctx.Route() != nil {
+		event = event.WithRoute(ctx.Route().String())
+	}
+
+	if ctx.Response().Header() != nil {
+		event = event.WithContentType(ctx.Response().Header().Get(HeaderContentType))
+		event = event.WithContentEncoding(ctx.Response().Header().Get(HeaderContentEncoding))
+	}
+	return event
+}
+
+func (a *App) recover(w http.ResponseWriter, req *http.Request) {
+	if rcv := recover(); rcv != nil {
+		err := exception.New(rcv)
+		a.logFatal(err)
+		if a.panicAction != nil {
+			a.handlePanic(w, req, rcv)
+		} else {
+			http.Error(w, "an internal server error occurred", http.StatusInternalServerError)
+		}
+	}
+}
+
+func (a *App) handlePanic(w http.ResponseWriter, r *http.Request, err interface{}) {
+	a.renderAction(func(ctx *Ctx) Result {
+		if a.log != nil {
+			a.log.Fatalf("%v", err)
+		}
+		return a.panicAction(ctx, err)
+	})(w, r, nil, nil, nil)
+}
+
+func (a *App) logFatal(err error) {
+	if a.log == nil {
+		return
+	}
+	if err != nil {
+		a.log.Fatal(err)
+	}
+}
+
 func (a *App) logError(err error) {
 	if a.log == nil {
 		return
@@ -1278,13 +1225,4 @@ func (a *App) syncFatalf(format string, args ...interface{}) {
 		return
 	}
 	a.log.SyncFatalf(format, args...)
-}
-
-func (a *App) setRunning() {
-	close(a.started)
-	atomic.StoreInt32(&a.running, 1)
-}
-
-func (a *App) setStopped() {
-	atomic.StoreInt32(&a.running, 0)
 }

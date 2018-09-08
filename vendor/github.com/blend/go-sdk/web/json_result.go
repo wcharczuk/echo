@@ -1,5 +1,7 @@
 package web
 
+import "github.com/blend/go-sdk/webutil"
+
 // JSONResult is a json result.
 type JSONResult struct {
 	StatusCode int
@@ -7,6 +9,6 @@ type JSONResult struct {
 }
 
 // Render renders the result
-func (ar *JSONResult) Render(ctx *Ctx) error {
-	return WriteJSON(ctx.Response(), ctx.Request(), ar.StatusCode, ar.Response)
+func (jr *JSONResult) Render(ctx *Ctx) error {
+	return webutil.WriteJSON(ctx.Response(), ctx.Request(), jr.StatusCode, jr.Response)
 }

@@ -45,7 +45,7 @@ type HTTPResponseEvent struct {
 	statusCode int
 	elapsed    time.Duration
 
-	state map[string]interface{}
+	state map[interface{}]interface{}
 }
 
 // WithHeadings sets the headings.
@@ -156,13 +156,13 @@ func (e *HTTPResponseEvent) ContentEncoding() string {
 }
 
 // WithState sets the request state.
-func (e *HTTPResponseEvent) WithState(state map[string]interface{}) *HTTPResponseEvent {
+func (e *HTTPResponseEvent) WithState(state map[interface{}]interface{}) *HTTPResponseEvent {
 	e.state = state
 	return e
 }
 
 // State returns the state of the request.
-func (e *HTTPResponseEvent) State() map[string]interface{} {
+func (e *HTTPResponseEvent) State() map[interface{}]interface{} {
 	return e.state
 }
 

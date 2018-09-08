@@ -14,6 +14,7 @@ type Event interface {
 // EventMetaProvider provides the full suite of event meta.
 type EventMetaProvider interface {
 	Event
+	EventEntity
 	EventHeadings
 	EventLabels
 	EventAnnotations
@@ -21,6 +22,12 @@ type EventMetaProvider interface {
 
 // Listener is a function that can be triggered by events.
 type Listener func(e Event)
+
+// EventEntity is a type that provides an entity value.
+type EventEntity interface {
+	SetEntity(string)
+	Entity() string
+}
 
 // EventHeadings determines if we should add another output field, `event-headings` to output.
 type EventHeadings interface {

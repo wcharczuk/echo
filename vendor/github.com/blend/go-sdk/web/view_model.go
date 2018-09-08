@@ -25,3 +25,9 @@ func (vm *ViewModel) Env(key string, defaults ...string) string {
 func (vm *ViewModel) UUIDv4() string {
 	return uuid.V4().String()
 }
+
+// StatusViewModel returns the status view model.
+type StatusViewModel struct {
+	StatusCode int
+	Response   interface{}
+}

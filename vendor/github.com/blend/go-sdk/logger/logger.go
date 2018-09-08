@@ -37,7 +37,7 @@ func New(flags ...Flag) *Logger {
 		recoverPanics: DefaultRecoverPanics,
 		flags:         NewFlagSet(flags...),
 	}
-	l.writeWorker = NewWorker(l, l.Write, DefaultWorkerQueueDepth)
+	l.writeWorker = NewWorker(l, l.Write, DefaultWriteQueueDepth)
 	l.writeWorker.Start()
 	return l
 }
@@ -45,11 +45,12 @@ func New(flags ...Flag) *Logger {
 // NewFromConfig returns a new logger from a config.
 func NewFromConfig(cfg *Config) *Logger {
 	l := &Logger{
-		recoverPanics: DefaultRecoverPanics,
-		flags:         NewFlagSetFromValues(cfg.GetFlags()...),
-		queueDepth:    cfg.GetQueueDepth(),
+		recoverPanics:            DefaultRecoverPanics,
+		flags:                    NewFlagSetFromValues(cfg.GetFlags()...),
+		writeWorkerQueueDepth:    cfg.GetWriteQueueDepth(),
+		listenerWorkerQueueDepth: cfg.GetListenerQueueDepth(),
 	}
-	l.writeWorker = NewWorker(l, l.Write, cfg.GetQueueDepth())
+	l.writeWorker = NewWorker(l, l.Write, l.writeWorkerQueueDepth)
 	l.writeWorker.Start()
 	return l.
 		WithHeading(cfg.GetHeading()).
@@ -93,8 +94,9 @@ func NewJSON() *Logger {
 type Logger struct {
 	writers []Writer
 
-	heading    string
-	queueDepth int
+	heading                  string
+	writeWorkerQueueDepth    int
+	listenerWorkerQueueDepth int
 
 	state int32
 
@@ -134,15 +136,26 @@ func (l *Logger) Heading() string {
 	return l.heading
 }
 
-// WithQueueDepth sets the worker queue depth.
-func (l *Logger) WithQueueDepth(queueDepth int) *Logger {
-	l.queueDepth = queueDepth
+// WithWriteWorkerQueueDepth sets the worker queue depth.
+func (l *Logger) WithWriteWorkerQueueDepth(queueDepth int) *Logger {
+	l.writeWorkerQueueDepth = queueDepth
 	return l
 }
 
-// QueueDepth returns the worker queue depth.
-func (l *Logger) QueueDepth() int {
-	return l.queueDepth
+// WriteWorkerQueueDepth returns the worker queue depth.
+func (l *Logger) WriteWorkerQueueDepth() int {
+	return l.writeWorkerQueueDepth
+}
+
+// WithListenerWorkerQueueDepth sets the worker queue depth.
+func (l *Logger) WithListenerWorkerQueueDepth(queueDepth int) *Logger {
+	l.listenerWorkerQueueDepth = queueDepth
+	return l
+}
+
+// ListenerWorkerQueueDepth returns the worker queue depth.
+func (l *Logger) ListenerWorkerQueueDepth() int {
+	return l.listenerWorkerQueueDepth
 }
 
 // Writers returns the output writers for events.
@@ -352,7 +365,7 @@ func (l *Logger) Listen(flag Flag, listenerName string, listener Listener) {
 		l.workers = map[Flag]map[string]*Worker{}
 	}
 
-	w := NewWorker(l, listener, l.queueDepth)
+	w := NewWorker(l, listener, l.listenerWorkerQueueDepth)
 	if listeners, hasListeners := l.workers[flag]; hasListeners {
 		listeners[listenerName] = w
 	} else {

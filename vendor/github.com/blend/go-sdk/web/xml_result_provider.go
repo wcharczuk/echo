@@ -2,22 +2,21 @@ package web
 
 import (
 	"net/http"
-
-	"github.com/blend/go-sdk/logger"
 )
 
-// NewXMLResultProvider Creates a new JSONResults object.
-func NewXMLResultProvider(log *logger.Logger) *XMLResultProvider {
-	return &XMLResultProvider{log: log}
-}
+var (
+	// XML is a static singleton xml result provider.
+	XML XMLResultProvider
+
+	// assert xml implements result provider.
+	_ ResultProvider = XML
+)
 
 // XMLResultProvider are context results for api methods.
-type XMLResultProvider struct {
-	log *logger.Logger
-}
+type XMLResultProvider struct{}
 
 // NotFound returns a service response.
-func (xrp *XMLResultProvider) NotFound() Result {
+func (xrp XMLResultProvider) NotFound() Result {
 	return &XMLResult{
 		StatusCode: http.StatusNotFound,
 		Response:   "Not Found",
@@ -25,7 +24,7 @@ func (xrp *XMLResultProvider) NotFound() Result {
 }
 
 // NotAuthorized returns a service response.
-func (xrp *XMLResultProvider) NotAuthorized() Result {
+func (xrp XMLResultProvider) NotAuthorized() Result {
 	return &XMLResult{
 		StatusCode: http.StatusForbidden,
 		Response:   "Not Authorized",
@@ -33,19 +32,15 @@ func (xrp *XMLResultProvider) NotAuthorized() Result {
 }
 
 // InternalError returns a service response.
-func (xrp *XMLResultProvider) InternalError(err error) Result {
-	if xrp.log != nil {
-		xrp.log.Fatal(err)
-	}
-
-	return &XMLResult{
+func (xrp XMLResultProvider) InternalError(err error) Result {
+	return resultWithLoggedError(&XMLResult{
 		StatusCode: http.StatusInternalServerError,
-		Response:   err.Error(),
-	}
+		Response:   err,
+	}, err)
 }
 
 // BadRequest returns a service response.
-func (xrp *XMLResultProvider) BadRequest(err error) Result {
+func (xrp XMLResultProvider) BadRequest(err error) Result {
 	if err != nil {
 		return &XMLResult{
 			StatusCode: http.StatusBadRequest,
@@ -59,17 +54,25 @@ func (xrp *XMLResultProvider) BadRequest(err error) Result {
 }
 
 // OK returns a service response.
-func (xrp *XMLResultProvider) OK() Result {
+func (xrp XMLResultProvider) OK() Result {
 	return &XMLResult{
 		StatusCode: http.StatusOK,
 		Response:   "OK!",
 	}
 }
 
+// Status returns a plaintext result.
+func (xrp XMLResultProvider) Status(statusCode int, response ...interface{}) Result {
+	return &XMLResult{
+		StatusCode: statusCode,
+		Response:   ResultOrDefault(http.StatusText(statusCode), response...),
+	}
+}
+
 // Result returns an xml response.
-func (xrp *XMLResultProvider) Result(response interface{}) Result {
+func (xrp XMLResultProvider) Result(result interface{}) Result {
 	return &XMLResult{
 		StatusCode: http.StatusOK,
-		Response:   response,
+		Response:   result,
 	}
 }

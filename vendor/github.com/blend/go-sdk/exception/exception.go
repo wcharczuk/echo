@@ -85,6 +85,7 @@ type Exception interface {
 
 	WithClass(error) Exception
 	Class() error
+	WithMessage(string) Exception
 	WithMessagef(string, ...interface{}) Exception
 	Message() string
 	WithInner(error) Exception
@@ -126,21 +127,30 @@ func (e *Ex) Format(s fmt.State, verb rune) {
 			} else if len(e.message) > 0 {
 				io.WriteString(s, e.message)
 			}
-
 			e.stack.Format(s, verb)
-			return
 		} else if s.Flag('-') {
 			e.stack.Format(s, verb)
-			return
+		} else {
+			io.WriteString(s, e.class.Error())
+			if len(e.message) > 0 {
+				fmt.Fprintf(s, "\nmessage: %s", e.message)
+			}
 		}
-
-		io.WriteString(s, e.class.Error())
-		if len(e.message) > 0 {
-			fmt.Fprintf(s, "\nmessage: %s", e.message)
+		if e.inner != nil {
+			if typed, ok := e.inner.(fmt.Formatter); ok {
+				fmt.Fprint(s, "\ninner: ")
+				typed.Format(s, verb)
+			} else {
+				fmt.Fprintf(s, "\ninner: %v", e.inner)
+			}
 		}
 		return
 	case 'c':
 		io.WriteString(s, e.class.Error())
+	case 'i':
+		if e.inner != nil {
+			io.WriteString(s, e.inner.Error())
+		}
 	case 'm':
 		io.WriteString(s, e.message)
 	case 'q':
@@ -191,9 +201,6 @@ func (e *Ex) Class() error {
 
 // WithInner sets inner or causing exception.
 func (e *Ex) WithInner(err error) Exception {
-	if e == nil {
-		return newWithStartDepth(err, defaultNewStartDepth)
-	}
 	e.inner = newWithStartDepth(err, defaultNewStartDepth)
 	return e
 }
@@ -201,6 +208,12 @@ func (e *Ex) WithInner(err error) Exception {
 // Inner returns an optional nested exception.
 func (e *Ex) Inner() error {
 	return e.inner
+}
+
+// WithMessage sets the exception message.
+func (e *Ex) WithMessage(message string) Exception {
+	e.message = message
+	return e
 }
 
 // WithMessagef sets the message based on a format and args, and returns the exception.

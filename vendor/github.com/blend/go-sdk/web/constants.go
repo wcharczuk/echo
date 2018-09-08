@@ -60,6 +60,9 @@ const (
 	// It is an informational header to tell the client what server software was used.
 	HeaderServer = "Server"
 
+	// HeaderUserAgent is the user agent header.
+	HeaderUserAgent = "User-Agent"
+
 	// HeaderVary is the "Vary" header.
 	// It is used to indicate what fields should be used by the client as cache keys.
 	HeaderVary = "Vary"
@@ -226,8 +229,8 @@ const (
 	DefaultSecureCookieName = "SSID"
 	// DefaultCookiePath is the default cookie path.
 	DefaultCookiePath = "/"
-	// DefaultSessionTimeout is the default absolute timeout for a session (here implying we should use session lived sessions).
-	DefaultSessionTimeout time.Duration = 0
+	// DefaultSessionTimeout is the default absolute timeout for a session (24 hours as a sane default).
+	DefaultSessionTimeout time.Duration = 24 * time.Hour
 	// DefaultUseSessionCache is the default if we should use the auth manager session cache.
 	DefaultUseSessionCache = true
 	// DefaultSessionTimeoutIsAbsolute is the default if we should set absolute session expiries.
@@ -238,6 +241,9 @@ const (
 
 	// DefaultShutdownGracePeriod is the default shutdown grace period.
 	DefaultShutdownGracePeriod = 5 * time.Second
+
+	// DefaultBufferPoolSize is the default buffer pool size.
+	DefaultViewBufferPoolSize = 256
 )
 
 // DefaultHeaders are the default headers added by go-web.
@@ -258,6 +264,14 @@ const (
 
 	// SessionReadWriteLock is a lock policy that acquires both a read and a write lock on session.
 	SessionReadWriteLock SessionLockPolicy = 2
+)
+
+const (
+	// PostBodySize is the maximum post body size we will typically consume.
+	PostBodySize = int64(1 << 26) //64mb
+
+	// PostBodySizeMax is the absolute maximum file size the server can handle.
+	PostBodySizeMax = int64(1 << 32) //enormous.
 )
 
 const (

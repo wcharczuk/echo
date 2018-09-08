@@ -1,40 +1,77 @@
 package web
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
 	"html/template"
-	"strings"
+	"net/http"
 	"sync"
-	"time"
 
 	"github.com/blend/go-sdk/exception"
+)
+
+const (
+	// DefaultTemplateNameBadRequest is the default template name for bad request view results.
+	DefaultTemplateNameBadRequest = "bad_request"
+	// DefaultTemplateNameInternalError is the default template name for internal server error view results.
+	DefaultTemplateNameInternalError = "error"
+	// DefaultTemplateNameNotFound is the default template name for not found error view results.
+	DefaultTemplateNameNotFound = "not_found"
+	// DefaultTemplateNameNotAuthorized is the default template name for not authorized error view results.
+	DefaultTemplateNameNotAuthorized = "not_authorized"
+	// DefaultTemplateNameStatus is the default template name for status view results.
+	DefaultTemplateNameStatus = "status"
+
+	// DefaultTemplateBadRequest is a basic view.
+	DefaultTemplateBadRequest = `<html><head><style>body { font-family: sans-serif; text-align: center; }</style></head><body><h4>Bad Request</h4></body><pre>{{ .ViewModel }}</pre></html>`
+	// DefaultTemplateInternalError is a basic view.
+	DefaultTemplateInternalError = `<html><head><style>body { font-family: sans-serif; text-align: center; }</style></head><body><h4>Internal Error</h4><pre>{{ .ViewModel }}</body></html>`
+	// DefaultTemplateNotAuthorized is a basic view.
+	DefaultTemplateNotAuthorized = `<html><head><style>body { font-family: sans-serif; text-align: center; }</style></head><body><h4>Not Authorized</h4></body></html>`
+	// DefaultTemplateNotFound is a basic view.
+	DefaultTemplateNotFound = `<html><head><style>body { font-family: sans-serif; text-align: center; }</style></head><body><h4>Not Found</h4></body></html>`
+	// DefaultTemplateStatus is a basic view.
+	DefaultTemplateStatus = `<html><head><style>body { font-family: sans-serif; text-align: center; }</style></head><body><h4>{{ .ViewModel.StatusCode }}</h4></body><pre>{{ .ViewModel.Response }}</pre></html>`
+)
+
+// Assert the view cache is a result provider.
+var (
+	_ ResultProvider = (*ViewCache)(nil)
 )
 
 // NewViewCache returns a new view cache.
 func NewViewCache() *ViewCache {
 	return &ViewCache{
-		viewFuncMap: viewUtils(),
-		viewCache:   template.New(""),
-		cached:      true,
+		viewFuncMap:               ViewFuncs(),
+		viewCache:                 template.New(""), // an empty template tree.
+		bufferPool:                NewBufferPool(32),
+		cached:                    true,
+		internalErrorTemplateName: DefaultTemplateNameInternalError,
+		badRequestTemplateName:    DefaultTemplateNameBadRequest,
+		notFoundTemplateName:      DefaultTemplateNameNotFound,
+		notAuthorizedTemplateName: DefaultTemplateNameNotAuthorized,
+		statusTemplateName:        DefaultTemplateNameStatus,
 	}
 }
 
 // NewViewCacheFromConfig returns a new view cache from a config.
 func NewViewCacheFromConfig(cfg *ViewCacheConfig) *ViewCache {
 	return &ViewCache{
-		viewFuncMap: viewUtils(),
-		viewCache:   template.New(""),
-		viewPaths:   cfg.GetPaths(),
-		cached:      cfg.GetCached(),
+		viewFuncMap:               ViewFuncs(),
+		viewCache:                 template.New(""), // an empty template tree.
+		bufferPool:                NewBufferPool(cfg.GetBufferPoolSize()),
+		viewPaths:                 cfg.GetPaths(),
+		cached:                    cfg.GetCached(),
+		internalErrorTemplateName: cfg.GetInternalErrorTemplateName(),
+		badRequestTemplateName:    cfg.GetBadRequestTemplateName(),
+		notFoundTemplateName:      cfg.GetNotFoundTemplateName(),
+		notAuthorizedTemplateName: cfg.GetNotAuthorizedTemplateName(),
+		statusTemplateName:        cfg.GetStatusTemplateName(),
 	}
 }
 
 // NewViewCacheWithTemplates creates a new view cache wrapping the templates.
 func NewViewCacheWithTemplates(templates *template.Template) *ViewCache {
 	return &ViewCache{
-		viewFuncMap: viewUtils(),
+		viewFuncMap: ViewFuncs(),
 		viewCache:   templates,
 		cached:      true,
 	}
@@ -48,8 +85,71 @@ type ViewCache struct {
 	viewCache    *template.Template
 	cached       bool
 
+	bufferPool *BufferPool
+
 	initializedLock sync.Mutex
 	initialized     bool
+
+	badRequestTemplateName    string
+	internalErrorTemplateName string
+	notFoundTemplateName      string
+	notAuthorizedTemplateName string
+	statusTemplateName        string
+}
+
+// WithBadRequestTemplateName sets the bad request template.
+func (vc *ViewCache) WithBadRequestTemplateName(templateName string) *ViewCache {
+	vc.badRequestTemplateName = templateName
+	return vc
+}
+
+// BadRequestTemplateName returns the bad request template.
+func (vc *ViewCache) BadRequestTemplateName() string {
+	return vc.badRequestTemplateName
+}
+
+// WithInternalErrorTemplateName sets the bad request template.
+func (vc *ViewCache) WithInternalErrorTemplateName(templateName string) *ViewCache {
+	vc.internalErrorTemplateName = templateName
+	return vc
+}
+
+// InternalErrorTemplateName returns the bad request template.
+func (vc *ViewCache) InternalErrorTemplateName() string {
+	return vc.internalErrorTemplateName
+}
+
+// WithNotFoundTemplateName sets the not found request template name.
+func (vc *ViewCache) WithNotFoundTemplateName(templateName string) *ViewCache {
+	vc.notFoundTemplateName = templateName
+	return vc
+}
+
+// NotFoundTemplateName returns the not found template name.
+func (vc *ViewCache) NotFoundTemplateName() string {
+	return vc.notFoundTemplateName
+}
+
+// WithNotAuthorizedTemplateName sets the not authorized template name.
+func (vc *ViewCache) WithNotAuthorizedTemplateName(templateName string) *ViewCache {
+	vc.notAuthorizedTemplateName = templateName
+	return vc
+}
+
+// NotAuthorizedTemplateName returns the not authorized template name.
+func (vc *ViewCache) NotAuthorizedTemplateName() string {
+	return vc.notAuthorizedTemplateName
+}
+
+// WithStatusTemplateName sets the status templatename .
+func (vc *ViewCache) WithStatusTemplateName(templateName string) *ViewCache {
+	vc.statusTemplateName = templateName
+	return vc
+}
+
+// StatusTemplateName returns the status template name.
+func (vc *ViewCache) StatusTemplateName() string {
+	return vc.statusTemplateName
 }
 
 // Initialized returns if the viewcache is initialized.
@@ -208,66 +308,126 @@ func (vc *ViewCache) SetTemplates(viewCache *template.Template) {
 	vc.viewCache = viewCache
 }
 
-func viewUtils() template.FuncMap {
-	return template.FuncMap{
-		"short": func(t time.Time) string {
-			return t.Format("1/02/2006 3:04:05 PM")
-		},
-		"shortDate": func(t time.Time) string {
-			return t.Format("1/02/2006")
-		},
-		"medium": func(t time.Time) string {
-			return t.Format("Jan 02, 2006 3:04:05 PM")
-		},
-		"kitchen": func(t time.Time) string {
-			return t.Format(time.Kitchen)
-		},
-		"monthDate": func(t time.Time) string {
-			return t.Format("1/2")
-		},
-		"money": func(d float64) string {
-			return fmt.Sprintf("$%0.2f", d)
-		},
-		"duration": func(d time.Duration) string {
-			if d > time.Hour {
-				return fmt.Sprintf("%0.2fh", float64(d)/float64(time.Hour))
-			}
-			if d > time.Minute {
-				return fmt.Sprintf("%0.2fm", float64(d)/float64(time.Minute))
-			}
-			if d > time.Second {
-				return fmt.Sprintf("%0.2fs", float64(d)/float64(time.Second))
-			}
-			if d > time.Millisecond {
-				return fmt.Sprintf("%0.2fms", float64(d)/float64(time.Millisecond))
-			}
-			if d > time.Microsecond {
-				return fmt.Sprintf("%0.2fµs", float64(d)/float64(time.Microsecond))
-			}
-			return fmt.Sprintf("%dns", d)
-		},
-		"pct": func(v float64) string {
-			return fmt.Sprintf("%0.2f%%", v*100)
-		},
-		"csv": func(items []string) string {
-			return strings.Join(items, ", ")
-		},
-		"json": func(v interface{}) (string, error) {
-			contents, err := json.Marshal(v)
-			if err != nil {
-				return "", err
-			}
-			return string(contents), nil
-		},
-		"jsonPretty": func(v interface{}) (string, error) {
-			buf := bytes.NewBuffer(nil)
-			encoder := json.NewEncoder(buf)
-			encoder.SetIndent("", "\t")
-			err := encoder.Encode(v)
-			if err != nil {
-				return "", err
-			}
-			return buf.String(), nil
-		},
+// BadRequest returns a view result.
+func (vc *ViewCache) BadRequest(err error) Result {
+	t, viewErr := vc.Lookup(vc.BadRequestTemplateName())
+	if viewErr != nil {
+		return vc.viewError(viewErr)
+	}
+	if t == nil {
+		t, _ = template.New("default").Parse(DefaultTemplateBadRequest)
+	}
+
+	return &ViewResult{
+		ViewName:   vc.BadRequestTemplateName(),
+		StatusCode: http.StatusBadRequest,
+		ViewModel:  err,
+		Template:   t,
+		Views:      vc,
+	}
+}
+
+// InternalError returns a view result.
+func (vc *ViewCache) InternalError(err error) Result {
+	t, err := vc.Lookup(vc.InternalErrorTemplateName())
+	if err != nil {
+		return vc.viewError(err)
+	}
+	if t == nil {
+		t, _ = template.New("default").Parse(DefaultTemplateInternalError)
+	}
+	return resultWithLoggedError(&ViewResult{
+		ViewName:   vc.InternalErrorTemplateName(),
+		StatusCode: http.StatusInternalServerError,
+		ViewModel:  err,
+		Template:   t,
+		Views:      vc,
+	}, err)
+}
+
+// NotFound returns a view result.
+func (vc *ViewCache) NotFound() Result {
+	t, viewErr := vc.Lookup(vc.NotFoundTemplateName())
+	if viewErr != nil {
+		return vc.viewError(viewErr)
+	}
+	if t == nil {
+		t, _ = template.New("default").Parse(DefaultTemplateNotFound)
+	}
+
+	return &ViewResult{
+		ViewName:   vc.NotFoundTemplateName(),
+		StatusCode: http.StatusNotFound,
+		Template:   t,
+		Views:      vc,
+	}
+}
+
+// NotAuthorized returns a view result.
+func (vc *ViewCache) NotAuthorized() Result {
+	t, err := vc.Lookup(vc.NotAuthorizedTemplateName())
+	if err != nil {
+		return vc.viewError(err)
+	}
+	if t == nil {
+		t, _ = template.New("").Parse(DefaultTemplateNotAuthorized)
+	}
+
+	return &ViewResult{
+		ViewName:   vc.NotAuthorizedTemplateName(),
+		StatusCode: http.StatusForbidden,
+		Template:   t,
+		Views:      vc,
+	}
+}
+
+// Status returns a status view result.
+func (vc *ViewCache) Status(statusCode int, response ...interface{}) Result {
+	t, viewErr := vc.Lookup(vc.StatusTemplateName())
+	if viewErr != nil {
+		return vc.viewError(viewErr)
+	}
+	if t == nil {
+		t, _ = template.New("default").Parse(DefaultTemplateStatus)
+	}
+
+	return &ViewResult{
+		ViewName:   vc.StatusTemplateName(),
+		StatusCode: statusCode,
+		Template:   t,
+		ViewModel:  StatusViewModel{StatusCode: statusCode, Response: ResultOrDefault(http.StatusText(statusCode), response...)},
+	}
+}
+
+// View returns a view result.
+func (vc *ViewCache) View(viewName string, viewModel interface{}) Result {
+	t, err := vc.Lookup(viewName)
+	if err != nil {
+		return vc.viewError(err)
+	}
+	if t == nil {
+		return vc.InternalError(exception.New(ErrUnsetViewTemplate).WithMessagef("viewname: %s", viewName))
+	}
+
+	return &ViewResult{
+		ViewName:   viewName,
+		StatusCode: http.StatusOK,
+		ViewModel:  viewModel,
+		Template:   t,
+		Views:      vc,
+	}
+}
+
+// ----------------------------------------------------------------------
+// helpers
+// ----------------------------------------------------------------------
+
+func (vc *ViewCache) viewError(err error) Result {
+	t, _ := template.New("default").Parse(DefaultTemplateInternalError)
+	return &ViewResult{
+		StatusCode: http.StatusInternalServerError,
+		ViewModel:  err,
+		Template:   t,
+		Views:      vc,
 	}
 }

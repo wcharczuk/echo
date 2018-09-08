@@ -7,44 +7,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"time"
-
-	"strings"
 
 	"github.com/blend/go-sdk/exception"
 	"github.com/blend/go-sdk/logger"
+	"github.com/blend/go-sdk/util"
 )
-
-const (
-	// PostBodySize is the maximum post body size we will typically consume.
-	PostBodySize = int64(1 << 26) //64mb
-
-	// PostBodySizeMax is the absolute maximum file size the server can handle.
-	PostBodySizeMax = int64(1 << 32) //enormous.
-
-	// StringEmpty is the empty string.
-	StringEmpty = ""
-)
-
-// Request is an alias to Ctx.
-// It is part of a longer term transition.
-type Request = Ctx
-
-// defaultResultProvider is used by bare ctx results, it generally
-// won't stay the default for long, as it's overwritten by `App`.
-var defaultResultProvider = &TextResultProvider{}
 
 // NewCtx returns a new hc context.
 func NewCtx(w ResponseWriter, r *http.Request, p RouteParameters, s State) *Ctx {
 	ctx := &Ctx{
-		response:        w,
-		request:         r,
-		routeParameters: p,
-		state:           s,
-		defaultResultProvider: defaultResultProvider,
+		id:                    util.String.RandomLetters(10),
+		response:              w,
+		request:               r,
+		routeParameters:       p,
+		state:                 s,
+		defaultResultProvider: Text,
 	}
-
 	if ctx.state == nil {
 		ctx.state = State{}
 	}
@@ -54,33 +33,34 @@ func NewCtx(w ResponseWriter, r *http.Request, p RouteParameters, s State) *Ctx 
 
 // Ctx is the struct that represents the context for an hc request.
 type Ctx struct {
+	id       string
 	response ResponseWriter
 	request  *http.Request
 
-	app  *App
-	log  *logger.Logger
-	auth *AuthManager
+	app   *App
+	views *ViewCache
+	log   *logger.Logger
+	auth  *AuthManager
 
-	postBody []byte
+	tracer Tracer
 
-	view                  *ViewResultProvider
-	json                  *JSONResultProvider
-	xml                   *XMLResultProvider
-	text                  *TextResultProvider
+	postBody              []byte
 	defaultResultProvider ResultProvider
 
-	state            State
-	routeParameters  RouteParameters
-	route            *Route
-	statusCode       int
-	contentLength    int
-	requestStart     time.Time
-	requestEnd       time.Time
-	requestLogFormat string
-	session          *Session
+	state           State
+	session         *Session
+	routeParameters RouteParameters
+	route           *Route
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	statusCode    int
+	contentLength int
+	requestStart  time.Time
+	requestEnd    time.Time
+}
+
+// ID returns a pseudo unique id for the request.
+func (rc *Ctx) ID() string {
+	return rc.id
 }
 
 // WithResponse sets the underlying response.
@@ -106,21 +86,14 @@ func (rc *Ctx) Request() *http.Request {
 }
 
 // WithContext sets the background context for the request.
-func (rc *Ctx) WithContext(ctx context.Context) *Ctx {
-	rc.ctx = ctx
+func (rc *Ctx) WithContext(context context.Context) *Ctx {
+	rc.request = rc.request.WithContext(context)
 	return rc
 }
 
-// Background returns the background context for a request.
-func (rc *Ctx) Background() context.Context {
-	return rc.ctx
-}
-
-// Cancel calls the cancel func if it's set.
-func (rc *Ctx) Cancel() {
-	if rc.cancel != nil {
-		rc.cancel()
-	}
+// Context returns the context.
+func (rc *Ctx) Context() context.Context {
+	return rc.request.Context()
 }
 
 // WithApp sets the app reference for the ctx.
@@ -156,24 +129,56 @@ func (rc *Ctx) Session() *Session {
 	return rc.session
 }
 
-// View returns the view result provider.
-func (rc *Ctx) View() *ViewResultProvider {
-	return rc.view
+// View returns the view cache as a result provider.
+/*
+It returns a reference to the view cache where views can either be read from disk
+for every request (uncached) or read from an in-memory cache.
+
+To return a web result for a view with the name "index" simply return:
+
+	return r.View().View("index", myViewmodel)
+
+It is important to not you'll want to have loaded the "index" view at some point
+in the application bootstrap (typically when you register your controller).
+*/
+func (rc *Ctx) View() *ViewCache {
+	return rc.views
 }
 
 // JSON returns the JSON result provider.
-func (rc *Ctx) JSON() *JSONResultProvider {
-	return rc.json
+/*
+It can be eschewed for:
+
+	return web.JSON.Result(foo)
+
+But is left in place for legacy reasons.
+*/
+func (rc *Ctx) JSON() JSONResultProvider {
+	return JSON
 }
 
 // XML returns the xml result provider.
-func (rc *Ctx) XML() *XMLResultProvider {
-	return rc.xml
+/*
+It can be eschewed for:
+
+	return web.XML.Result(foo)
+
+But is left in place for legacy reasons.
+*/
+func (rc *Ctx) XML() XMLResultProvider {
+	return XML
 }
 
 // Text returns the text result provider.
-func (rc *Ctx) Text() *TextResultProvider {
-	return rc.text
+/*
+It can be eschewed for:
+
+	return web.Text.Result(foo)
+
+But is left in place for legacy reasons.
+*/
+func (rc *Ctx) Text() TextResultProvider {
+	return Text
 }
 
 // DefaultResultProvider returns the current result provider for the context. This is
@@ -215,6 +220,27 @@ func (rc *Ctx) WithStateValue(key string, value interface{}) *Ctx {
 }
 
 // Param returns a parameter from the request.
+/*
+It checks, in order:
+	- RouteParam
+	- QueryValue
+	- HeaderValue
+	- FormValue
+	- CookieValue
+
+It should only be used in cases where you don't necessarily know where the param
+value will be coming from. Where possible, use the more tightly scoped
+param getters.
+
+It returns the value, and a validation error if the value is not found in
+any of the possible sources.
+
+You can use one of the Value functions to also cast the resulting string
+into a useful type:
+
+	typed, err := web.IntValue(rc.Param("fooID"))
+
+*/
 func (rc *Ctx) Param(name string) (string, error) {
 	if rc.routeParameters != nil {
 		routeValue := rc.routeParameters.Get(name)
@@ -250,58 +276,6 @@ func (rc *Ctx) Param(name string) (string, error) {
 	return "", newParameterMissingError(name)
 }
 
-// ParamString is a shortcut for ParamString that swallows the missing value error.
-func (rc *Ctx) ParamString(name string) string {
-	value, _ := rc.Param(name)
-	return value
-}
-
-// ParamInt returns a parameter from any location as an integer.
-func (rc *Ctx) ParamInt(name string) (int, error) {
-	paramValue, err := rc.Param(name)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.Atoi(paramValue)
-}
-
-// ParamInt64 returns a parameter from any location as an int64.
-func (rc *Ctx) ParamInt64(name string) (int64, error) {
-	paramValue, err := rc.Param(name)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseInt(paramValue, 10, 64)
-}
-
-// ParamFloat64 returns a parameter from any location as a float64.
-func (rc *Ctx) ParamFloat64(name string) (float64, error) {
-	paramValue, err := rc.Param(name)
-	if err != nil {
-		return 0, err
-	}
-	return strconv.ParseFloat(paramValue, 64)
-}
-
-// ParamTime returns a parameter from any location as a time with a given format.
-func (rc *Ctx) ParamTime(name, format string) (time.Time, error) {
-	paramValue, err := rc.Param(name)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Parse(format, paramValue)
-}
-
-// ParamBool returns a boolean value for a param.
-func (rc *Ctx) ParamBool(name string) (bool, error) {
-	paramValue, err := rc.Param(name)
-	if err != nil {
-		return false, err
-	}
-	lower := strings.ToLower(paramValue)
-	return lower == "true" || lower == "1" || lower == "yes", nil
-}
-
 // RouteParam returns a string route parameter
 func (rc *Ctx) RouteParam(key string) (output string, err error) {
 	if value, hasKey := rc.routeParameters[key]; hasKey {
@@ -312,38 +286,8 @@ func (rc *Ctx) RouteParam(key string) (output string, err error) {
 	return
 }
 
-// RouteParamInt returns a route parameter as an integer.
-func (rc *Ctx) RouteParamInt(key string) (output int, err error) {
-	if value, hasKey := rc.routeParameters[key]; hasKey {
-		output, err = strconv.Atoi(value)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// RouteParamInt64 returns a route parameter as an integer.
-func (rc *Ctx) RouteParamInt64(key string) (output int64, err error) {
-	if value, hasKey := rc.routeParameters[key]; hasKey {
-		output, err = strconv.ParseInt(value, 10, 64)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// RouteParamFloat64 returns a route parameter as an float64.
-func (rc *Ctx) RouteParamFloat64(key string) (output float64, err error) {
-	if value, hasKey := rc.routeParameters[key]; hasKey {
-		output, err = strconv.ParseFloat(value, 64)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// QueryParam returns a query parameter.
-func (rc *Ctx) QueryParam(key string) (value string, err error) {
+// QueryValue returns a query value.
+func (rc *Ctx) QueryValue(key string) (value string, err error) {
 	if value = rc.request.URL.Query().Get(key); len(value) > 0 {
 		return
 	}
@@ -351,47 +295,7 @@ func (rc *Ctx) QueryParam(key string) (value string, err error) {
 	return
 }
 
-// QueryParamInt returns a query parameter as an integer.
-func (rc *Ctx) QueryParamInt(key string) (output int, err error) {
-	if value := rc.request.URL.Query().Get(key); len(value) > 0 {
-		output, err = strconv.Atoi(value)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// QueryParamInt64 returns a query parameter as an int64.
-func (rc *Ctx) QueryParamInt64(key string) (output int64, err error) {
-	if value := rc.request.URL.Query().Get(key); len(value) > 0 {
-		output, err = strconv.ParseInt(value, 10, 64)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// QueryParamFloat64 returns a query parameter as a float64.
-func (rc *Ctx) QueryParamFloat64(key string) (output float64, err error) {
-	if value := rc.request.URL.Query().Get(key); len(value) > 0 {
-		output, err = strconv.ParseFloat(value, 64)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// QueryParamTime returns a query parameter as a time.Time.
-func (rc *Ctx) QueryParamTime(key, format string) (output time.Time, err error) {
-	if value := rc.request.URL.Query().Get(key); len(value) > 0 {
-		output, err = time.Parse(format, value)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// FormValue returns a query parameter.
+// FormValue returns a form value.
 func (rc *Ctx) FormValue(key string) (output string, err error) {
 	if value := rc.request.FormValue(key); len(value) > 0 {
 		output = value
@@ -401,84 +305,9 @@ func (rc *Ctx) FormValue(key string) (output string, err error) {
 	return
 }
 
-// FormValueInt returns a form value as an int.
-func (rc *Ctx) FormValueInt(key string) (output int, err error) {
-	if value := rc.request.FormValue(key); len(value) > 0 {
-		output, err = strconv.Atoi(value)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// FormValueInt64 returns a form value parsed as an int64.
-func (rc *Ctx) FormValueInt64(key string) (output int64, err error) {
-	if value := rc.request.FormValue(key); len(value) > 0 {
-		output, err = strconv.ParseInt(value, 10, 64)
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// FormValueFloat64 returns a form value parsed as a float64.
-func (rc *Ctx) FormValueFloat64(key string) (output float64, err error) {
-	if value := rc.request.FormValue(key); len(value) > 0 {
-		output, err = strconv.ParseFloat(value, 64)
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// FormValueTime returns a form value parsed as a time.Time.
-func (rc *Ctx) FormValueTime(key, format string) (output time.Time, err error) {
-	if value := rc.request.FormValue(key); len(value) > 0 {
-		output, err = time.Parse(format, value)
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// HeaderParam returns a header parameter value.
-func (rc *Ctx) HeaderParam(key string) (value string, err error) {
+// HeaderValue returns a header value.
+func (rc *Ctx) HeaderValue(key string) (value string, err error) {
 	if value = rc.request.Header.Get(key); len(value) > 0 {
-		return
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// HeaderParamInt returns a header parameter value as an integer.
-func (rc *Ctx) HeaderParamInt(key string) (output int, err error) {
-	if value := rc.request.Header.Get(key); len(value) > 0 {
-		output, err = strconv.Atoi(value)
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// HeaderParamInt64 returns a header parameter value as an integer.
-func (rc *Ctx) HeaderParamInt64(key string) (output int64, err error) {
-	if value := rc.request.Header.Get(key); len(value) > 0 {
-		output, err = strconv.ParseInt(value, 10, 64)
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// HeaderParamFloat64 returns a header parameter value as an float64.
-func (rc *Ctx) HeaderParamFloat64(key string) (output float64, err error) {
-	if value := rc.request.Header.Get(key); len(value) > 0 {
-		output, err = strconv.ParseFloat(value, 64)
-	}
-	err = newParameterMissingError(key)
-	return
-}
-
-// HeaderParamTime returns a header parameter value as an float64.
-func (rc *Ctx) HeaderParamTime(key, format string) (output time.Time, err error) {
-	if value := rc.request.Header.Get(key); len(value) > 0 {
-		output, err = time.Parse(format, key)
 		return
 	}
 	err = newParameterMissingError(key)
@@ -581,27 +410,17 @@ func (rc *Ctx) WriteCookie(cookie *http.Cookie) {
 	http.SetCookie(rc.response, cookie)
 }
 
-func (rc *Ctx) getCookieDomain() string {
-	if rc.app != nil && rc.app.baseURL != nil {
-		return rc.app.baseURL.Host
-	}
-	return rc.request.Host
-}
-
 // WriteNewCookie is a helper method for WriteCookie.
-func (rc *Ctx) WriteNewCookie(name string, value string, expires *time.Time, path string, secure bool) {
-	c := http.Cookie{
+func (rc *Ctx) WriteNewCookie(name string, value string, expires time.Time, path string, secure bool) {
+	rc.WriteCookie(&http.Cookie{
 		Name:     name,
 		HttpOnly: true,
 		Value:    value,
 		Path:     path,
 		Secure:   secure,
 		Domain:   rc.getCookieDomain(),
-	}
-	if expires != nil {
-		c.Expires = *expires
-	}
-	rc.WriteCookie(&c)
+		Expires:  expires,
+	})
 }
 
 // ExtendCookieByDuration extends a cookie by a time duration (on the order of nanoseconds to hours).
@@ -642,7 +461,7 @@ func (rc *Ctx) ExpireCookie(name string, path string) {
 }
 
 // --------------------------------------------------------------------------------
-// Diagnostics
+// Logger
 // --------------------------------------------------------------------------------
 
 // Logger returns the diagnostics agent.
@@ -656,8 +475,7 @@ func (rc *Ctx) Logger() *logger.Logger {
 
 // Raw returns a binary response body, sniffing the content type.
 func (rc *Ctx) Raw(body []byte) *RawResult {
-	sniffedContentType := http.DetectContentType(body)
-	return rc.RawWithContentType(sniffedContentType, body)
+	return rc.RawWithContentType(http.DetectContentType(body), body)
 }
 
 // RawWithContentType returns a binary response with a given content type.
@@ -705,43 +523,14 @@ func (rc *Ctx) RedirectWithMethodf(method, format string, args ...interface{}) *
 	}
 }
 
-// --------------------------------------------------------------------------------
-// Stats Methods used for logging.
-// --------------------------------------------------------------------------------
-
-// StatusCode returns the status code for the request, this is used for logging.
-func (rc *Ctx) getLoggedStatusCode() int {
-	return rc.statusCode
-}
-
-// SetStatusCode sets the status code for the request, this is used for logging.
-func (rc *Ctx) setLoggedStatusCode(code int) {
-	rc.statusCode = code
-}
-
-// ContentLength returns the content length for the request, this is used for logging.
-func (rc *Ctx) getLoggedContentLength() int {
-	return rc.contentLength
-}
-
-// SetContentLength sets the content length, this is used for logging.
-func (rc *Ctx) setLoggedContentLength(length int) {
-	rc.contentLength = length
-}
-
-// OnRequestStart will mark the start of request timing.
-func (rc *Ctx) onRequestStart() {
-	rc.requestStart = time.Now().UTC()
-}
-
-// Start returns the request start time.
+// Start returns the start request time.
 func (rc Ctx) Start() time.Time {
 	return rc.requestStart
 }
 
-// OnRequestEnd will mark the end of request timing.
-func (rc *Ctx) onRequestEnd() {
-	rc.requestEnd = time.Now().UTC()
+// End returns the end request time.
+func (rc Ctx) End() time.Time {
+	return rc.requestEnd
 }
 
 // Elapsed is the time delta between start and end.
@@ -757,9 +546,37 @@ func (rc *Ctx) Route() *Route {
 	return rc.route
 }
 
-// PostedFile is a file that has been posted to an hc endpoint.
-type PostedFile struct {
-	Key      string
-	FileName string
-	Contents []byte
+// --------------------------------------------------------------------------------
+// internal methods
+// --------------------------------------------------------------------------------
+
+func (rc *Ctx) getCookieDomain() string {
+	if rc.app != nil && rc.app.baseURL != nil {
+		return rc.app.baseURL.Host
+	}
+	return rc.request.Host
+}
+
+func (rc *Ctx) getStatusCode() int {
+	return rc.statusCode
+}
+
+func (rc *Ctx) setStatusCode(code int) {
+	rc.statusCode = code
+}
+
+func (rc *Ctx) getContentLength() int {
+	return rc.contentLength
+}
+
+func (rc *Ctx) setContentLength(length int) {
+	rc.contentLength = length
+}
+
+func (rc *Ctx) onRequestStart() {
+	rc.requestStart = time.Now().UTC()
+}
+
+func (rc *Ctx) onRequestFinish() {
+	rc.requestEnd = time.Now().UTC()
 }

@@ -1,7 +1,6 @@
 package web
 
 import (
-	"fmt"
 	"net/http"
 )
 
@@ -26,8 +25,11 @@ type Route struct {
 	Params []string
 }
 
-// String returns a string representation of the route.
+// String returns the path.
+func (r Route) String() string { return r.Path }
+
+// StringWithMethod returns a string representation of the route.
 // Namely: Method_Path
-func (r Route) String() string {
-	return fmt.Sprintf("%s_%s", r.Method, r.Path)
+func (r Route) StringWithMethod() string {
+	return r.Method + "_" + r.Path
 }

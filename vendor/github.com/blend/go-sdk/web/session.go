@@ -1,7 +1,6 @@
 package web
 
 import (
-	"sync"
 	"time"
 )
 
@@ -17,15 +16,20 @@ func NewSession(userID string, sessionID string) *Session {
 
 // Session is an active session
 type Session struct {
-	sync.RWMutex `json:"-" yaml:"-"`
-
 	UserID     string                 `json:"userID" yaml:"userID"`
+	BaseURL    string                 `json:"baseURL" yaml:"baseURL"`
 	SessionID  string                 `json:"sessionID" yaml:"sessionID"`
 	CreatedUTC time.Time              `json:"createdUTC" yaml:"createdUTC"`
-	ExpiresUTC *time.Time             `json:"expiresUTC" yaml:"expiresUTC"`
+	ExpiresUTC time.Time              `json:"expiresUTC" yaml:"expiresUTC"`
 	UserAgent  string                 `json:"userAgent" yaml:"userAgent"`
 	RemoteAddr string                 `json:"remoteAddr" yaml:"remoteAddr"`
 	State      map[string]interface{} `json:"state,omitempty" yaml:"state,omitempty"`
+}
+
+// WithBaseURL sets the base url.
+func (s *Session) WithBaseURL(baseURL string) *Session {
+	s.BaseURL = baseURL
+	return s
 }
 
 // WithUserAgent sets the user agent.
@@ -45,7 +49,7 @@ func (s *Session) IsExpired() bool {
 	if s == nil {
 		return false
 	}
-	if s.ExpiresUTC == nil {
+	if s.ExpiresUTC.IsZero() {
 		return false
 	}
 	return s.ExpiresUTC.Before(time.Now().UTC())

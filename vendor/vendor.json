@@ -3,40 +3,40 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "BCsGDAgNrRZzd89cTPXCF3SKu3A=",
+			"checksumSHA1": "Uy7wrtetRQfUyC35JTNoHgKbQFw=",
 			"path": "github.com/blend/go-sdk/env",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		},
 		{
-			"checksumSHA1": "/R25WbDkBtCSWvrM3aQ3Yv8xE1A=",
+			"checksumSHA1": "ZIliFQ9ipP1+dmUFCeESckhcFC0=",
 			"path": "github.com/blend/go-sdk/exception",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		},
 		{
-			"checksumSHA1": "6hTncfoDhwOTInqkglh5E8wtbYQ=",
+			"checksumSHA1": "zLMVzfU1mEbp/bZ0A6smzJ0gbCQ=",
 			"path": "github.com/blend/go-sdk/logger",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		},
 		{
-			"checksumSHA1": "WKtGuSwmwGxXZvIFg69JbVlpTrM=",
+			"checksumSHA1": "i/WlI2CLMrc7w0UVN/gbdmGEHBI=",
 			"path": "github.com/blend/go-sdk/util",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		},
 		{
-			"checksumSHA1": "2Fvz2yIAG+sTCK2/qAMZvCMChCo=",
+			"checksumSHA1": "DtK3sNTz4zR/sFdGoJBY0grzbHE=",
 			"path": "github.com/blend/go-sdk/uuid",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		},
 		{
-			"checksumSHA1": "hwmj6pgKicykewxLy+trxOk1iFM=",
+			"checksumSHA1": "8wWc1Hd5YHi/YlYoV2/lZBKKPZA=",
 			"path": "github.com/blend/go-sdk/web",
-			"revision": "777457cbd7e5cbbe9e091097447c24a974eebd03",
-			"revisionTime": "2018-08-20T21:12:57Z"
+			"revision": "e3f8d68e821a91f5b8f4cebc5561ec6d0712748b",
+			"revisionTime": "2018-09-07T17:51:52Z"
 		}
 	],
 	"rootPath": "github.com/wcharczuk/echo"

@@ -1,7 +1,6 @@
 package web
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -41,12 +40,12 @@ const (
 )
 
 // NewHealthz returns a new healthz.
-func NewHealthz(app *App) *Healthz {
+func NewHealthz(monitored *App) *Healthz {
 	return &Healthz{
-		app:            app,
+		monitored:      monitored,
 		defaultHeaders: map[string]string{},
 		state:          State{},
-		vars: map[string]interface{}{
+		vars: State{
 			VarzRequests:    int64(0),
 			VarzRequests2xx: int64(0),
 			VarzRequests3xx: int64(0),
@@ -59,13 +58,13 @@ func NewHealthz(app *App) *Healthz {
 }
 
 // NewHealthzFromEnv returns a new healthz from the env.
-func NewHealthzFromEnv(app *App) *Healthz {
-	return NewHealthzFromConfig(app, NewHealthzConfigFromEnv())
+func NewHealthzFromEnv(monitored *App) *Healthz {
+	return NewHealthzFromConfig(monitored, NewHealthzConfigFromEnv())
 }
 
 // NewHealthzFromConfig returns a new healthz sidecar from a config.
-func NewHealthzFromConfig(app *App, cfg *HealthzConfig) *Healthz {
-	hz := NewHealthz(app)
+func NewHealthzFromConfig(monitored *App, cfg *HealthzConfig) *Healthz {
+	hz := NewHealthz(monitored)
 	hz = hz.WithBindAddr(cfg.GetBindAddr())
 	hz = hz.WithRecoverPanics(cfg.GetRecoverPanics())
 	hz = hz.WithMaxHeaderBytes(cfg.GetMaxHeaderBytes())
@@ -76,34 +75,6 @@ func NewHealthzFromConfig(app *App, cfg *HealthzConfig) *Healthz {
 	return hz
 }
 
-// HealthzHost hosts an app with a healthz, starting both servers.
-func HealthzHost(app *App, hz *Healthz) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = exception.New(r)
-			return
-		}
-	}()
-
-	appQuit := make(chan struct{})
-	hzQuit := make(chan struct{})
-	go func() {
-		err = app.Start()
-		close(appQuit)
-	}()
-
-	go func() {
-		err = hz.Start()
-		close(hzQuit)
-	}()
-	select {
-	case <-appQuit:
-		return
-	case <-hzQuit:
-		return
-	}
-}
-
 // Healthz is a sentinel / healthcheck sidecar that can run on a different
 // port to the main app.
 // It typically implements the following routes:
@@ -111,7 +82,7 @@ func HealthzHost(app *App, hz *Healthz) (err error) {
 // 	/varz    - basic stats and metrics since start
 //	/debug/vars - `pkg/expvar` output.
 type Healthz struct {
-	app        *App
+	monitored  *App
 	startedUTC time.Time
 	bindAddr   string
 	log        *logger.Logger
@@ -129,88 +100,20 @@ type Healthz struct {
 	state State
 
 	varsLock sync.Mutex
-	vars     map[string]interface{}
+	vars     State
 
 	recoverPanics bool
 	err           error
 }
 
-// App returns the underlying app.
-func (hz *Healthz) App() *App {
-	return hz.app
+// Monitored returns the underlying app.
+func (hz *Healthz) Monitored() *App {
+	return hz.monitored
 }
 
 // Vars returns the underlying vars collection.
 func (hz *Healthz) Vars() State {
 	return hz.vars
-}
-
-// Server returns the underlying server.
-func (hz *Healthz) Server() *http.Server {
-	return hz.server
-}
-
-// Listener returns the underlying listener.
-func (hz *Healthz) Listener() *net.TCPListener {
-	return hz.listener
-}
-
-// WithServer sets the underlying server.
-func (hz *Healthz) WithServer(server *http.Server) *Healthz {
-	hz.server = server
-	return hz
-}
-
-// WithErr sets the err that will abort app start.
-func (hz *Healthz) WithErr(err error) *Healthz {
-	hz.err = err
-	return hz
-}
-
-// Err returns any errors that are generated before app start.
-func (hz *Healthz) Err() error {
-	return hz.err
-}
-
-// WithDefaultHeaders sets the default headers
-func (hz *Healthz) WithDefaultHeaders(headers map[string]string) *Healthz {
-	hz.defaultHeaders = headers
-	return hz
-}
-
-// WithDefaultHeader adds a default header.
-func (hz *Healthz) WithDefaultHeader(key string, value string) *Healthz {
-	hz.defaultHeaders[key] = value
-	return hz
-}
-
-// DefaultHeaders returns the default headers.
-func (hz *Healthz) DefaultHeaders() map[string]string {
-	return hz.defaultHeaders
-}
-
-// WithState sets app state and returns a reference to the app for building apps with a fluent api.
-func (hz *Healthz) WithState(key string, value interface{}) *Healthz {
-	hz.state[key] = value
-	return hz
-}
-
-// GetState gets app state element by key.
-func (hz *Healthz) GetState(key string) interface{} {
-	if value, hasValue := hz.state[key]; hasValue {
-		return value
-	}
-	return nil
-}
-
-// SetState sets app state.
-func (hz *Healthz) SetState(key string, value interface{}) {
-	hz.state[key] = value
-}
-
-// State is a bag for common app state.
-func (hz *Healthz) State() State {
-	return hz.state
 }
 
 // RecoverPanics returns if the app recovers panics.
@@ -336,68 +239,16 @@ func (hz *Healthz) WithLogger(log *logger.Logger) *Healthz {
 	return hz
 }
 
-// Start starts the server.
-func (hz *Healthz) Start() (err error) {
-	if hz.app == nil {
-		err = exception.New(ErrHealthzAppUnset)
-		return
-	}
-	start := time.Now()
-	if hz.log != nil {
-		hz.log.SyncTrigger(NewAppEvent(HealthzStart).WithHealthz(hz))
-		defer hz.log.SyncTrigger(NewAppEvent(HealthzExit).WithHealthz(hz).WithErr(err))
-	}
-
-	if hz.server == nil {
-		hz.server = hz.CreateServer()
-	}
+// Server returns the basic http.Server for the healthz host.
+func (hz *Healthz) Server() *http.Server {
 	hz.vars[VarzStarted] = time.Now().UTC()
 
-	if hz.app.log != nil {
-		hz.app.log.Listen(logger.HTTPResponse, ListenerHealthz, logger.NewHTTPResponseEventListener(hz.appHTTPResponseListener))
-		hz.app.log.Listen(logger.Error, ListenerHealthz, logger.NewErrorEventListener(hz.appErrorListener))
-		hz.app.log.Listen(logger.Fatal, ListenerHealthz, logger.NewErrorEventListener(hz.appErrorListener))
+	if hz.monitored.log != nil {
+		hz.monitored.log.Listen(logger.HTTPResponse, ListenerHealthz, logger.NewHTTPResponseEventListener(hz.httpResponseListener))
+		hz.monitored.log.Listen(logger.Error, ListenerHealthz, logger.NewErrorEventListener(hz.errorListener))
+		hz.monitored.log.Listen(logger.Fatal, ListenerHealthz, logger.NewErrorEventListener(hz.errorListener))
 	}
 
-	if hz.log != nil {
-		hz.log.SyncInfof("healthz server started, listening on %s", hz.server.Addr)
-		if hz.log.Flags() != nil {
-			hz.log.SyncInfof("healthz server logging flags %s", hz.log.Flags().String())
-		}
-	}
-
-	var listener net.Listener
-	listener, err = net.Listen("tcp", hz.bindAddr)
-	if err != nil {
-		err = exception.New(err)
-		return
-	}
-	hz.listener = listener.(*net.TCPListener)
-
-	if hz.log != nil {
-		hz.log.SyncTrigger(NewAppEvent(HealthzStartComplete).WithHealthz(hz).WithElapsed(time.Since(start)))
-	}
-
-	return hz.server.Serve(TCPKeepAliveListener{hz.listener})
-}
-
-// Shutdown stops the server.
-func (hz *Healthz) Shutdown() error {
-	if hz.server == nil {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	if hz.log != nil {
-		hz.log.SyncInfof("healthz server shutting down")
-	}
-	hz.server.SetKeepAlivesEnabled(false)
-	return exception.New(hz.server.Shutdown(ctx))
-}
-
-// CreateServer returns the basic http.Server for the app.
-func (hz *Healthz) CreateServer() *http.Server {
 	return &http.Server{
 		Addr:              hz.BindAddr(),
 		Handler:           hz,
@@ -465,7 +316,7 @@ func (hz *Healthz) recover(w http.ResponseWriter, req *http.Request) {
 }
 
 func (hz *Healthz) healthzHandler(w ResponseWriter, r *http.Request) {
-	if hz.app.Running() {
+	if hz.monitored.Latch().IsRunning() {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set(HeaderContentType, ContentTypeText)
 		fmt.Fprintf(w, "OK!\n")
@@ -488,7 +339,7 @@ func (hz *Healthz) varzHandler(w ResponseWriter, r *http.Request) {
 
 	var index int
 	for key := range hz.vars {
-		keys[index] = key
+		keys[index] = fmt.Sprintf("%v", key)
 		index++
 	}
 
@@ -501,7 +352,7 @@ func (hz *Healthz) varzHandler(w ResponseWriter, r *http.Request) {
 	}
 }
 
-func (hz *Healthz) appHTTPResponseListener(wre *logger.HTTPResponseEvent) {
+func (hz *Healthz) httpResponseListener(wre *logger.HTTPResponseEvent) {
 	hz.varsLock.Lock()
 	defer hz.varsLock.Unlock()
 
@@ -517,7 +368,7 @@ func (hz *Healthz) appHTTPResponseListener(wre *logger.HTTPResponseEvent) {
 	}
 }
 
-func (hz *Healthz) appErrorListener(e *logger.ErrorEvent) {
+func (hz *Healthz) errorListener(e *logger.ErrorEvent) {
 	hz.varsLock.Lock()
 	defer hz.varsLock.Unlock()
 

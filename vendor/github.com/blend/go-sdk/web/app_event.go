@@ -158,7 +158,7 @@ func (ae *AppEvent) WriteText(tf logger.TextFormatter, buf *bytes.Buffer) {
 		}
 
 		buf.WriteRune(logger.RuneSpace)
-		buf.WriteString(fmt.Sprintf("(%v)", ae.elapsed))
+		buf.WriteString(fmt.Sprintf("%v", ae.elapsed))
 	}
 }
 

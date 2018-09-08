@@ -1,14 +1,12 @@
 package web
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/blend/go-sdk/env"
-	"github.com/blend/go-sdk/exception"
 	"github.com/blend/go-sdk/logger"
 )
 
@@ -37,11 +35,8 @@ func NewHTTPSUpgraderFromConfig(cfg *HTTPSUpgraderConfig) *HTTPSUpgrader {
 
 // HTTPSUpgrader redirects HTTP to HTTPS
 type HTTPSUpgrader struct {
-	bindAddr   string
-	targetPort int32
-
-	server *http.Server
-
+	bindAddr          string
+	targetPort        int32
 	maxHeaderBytes    int
 	readTimeout       time.Duration
 	readHeaderTimeout time.Duration
@@ -91,23 +86,6 @@ func (hu *HTTPSUpgrader) WithPort(port int32) *HTTPSUpgrader {
 // SetPort sets the port the app listens on, typically to `:%d` which indicates listen on any interface.
 func (hu *HTTPSUpgrader) SetPort(port int32) {
 	hu.bindAddr = fmt.Sprintf(":%v", port)
-}
-
-// WithPortFromEnv sets the port from an environment variable, and returns a reference to the app.
-func (hu *HTTPSUpgrader) WithPortFromEnv() *HTTPSUpgrader {
-	hu.SetPortFromEnv()
-	return hu
-}
-
-// SetPortFromEnv sets the port from an environment variable, and returns a reference to the app.
-func (hu *HTTPSUpgrader) SetPortFromEnv() {
-	if env.Env().Has(EnvironmentVariablePort) {
-		port, err := env.Env().Int32(EnvironmentVariablePort)
-		if err != nil {
-			hu.err = err
-		}
-		hu.bindAddr = fmt.Sprintf(":%v", port)
-	}
 }
 
 // WithLogger sets the underlying logger.
@@ -215,38 +193,4 @@ func (hu *HTTPSUpgrader) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	http.Redirect(rw, req, newURL.String(), http.StatusMovedPermanently)
-}
-
-// Start starts the server and binds to the given address.
-func (hu *HTTPSUpgrader) Start() error {
-	return hu.StartWithServer(hu.Server())
-}
-
-// StartWithServer starts the app on a custom server.
-// This lets you configure things like TLS keys and
-// other options.
-func (hu *HTTPSUpgrader) StartWithServer(server *http.Server) (err error) {
-	// early exit if we already had an issue.
-	if hu.err != nil {
-		err = hu.err
-		return
-	}
-	if hu.targetPort > 0 {
-		hu.log.SyncInfof("https upgrade server started, listening on %s, upgrading to :%d", server.Addr, hu.targetPort)
-	} else {
-		hu.log.SyncInfof("https upgrade server started, listening on %s", server.Addr)
-	}
-	hu.server = server
-	err = exception.New(server.ListenAndServe())
-	return
-}
-
-// Shutdown stops the server.
-func (hu *HTTPSUpgrader) Shutdown() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	hu.log.SyncInfof("https upgrade server shutting down")
-	hu.server.SetKeepAlivesEnabled(false)
-	return exception.New(hu.server.Shutdown(ctx))
 }

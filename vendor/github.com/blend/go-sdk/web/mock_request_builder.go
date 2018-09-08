@@ -138,7 +138,7 @@ func (mrb *MockRequestBuilder) WithCookie(cookie *http.Cookie) *MockRequestBuild
 
 // WithCookieValue adds a basic name+value cookie for the request.
 func (mrb *MockRequestBuilder) WithCookieValue(name, value string) *MockRequestBuilder {
-	mrb.cookies = append(mrb.cookies, NewBasicCookie(name, value))
+	mrb.cookies = append(mrb.cookies, NewCookie(name, value))
 	return mrb
 }
 

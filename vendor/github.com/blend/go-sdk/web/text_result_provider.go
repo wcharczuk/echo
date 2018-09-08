@@ -3,22 +3,21 @@ package web
 import (
 	"fmt"
 	"net/http"
-
-	"github.com/blend/go-sdk/logger"
 )
 
-// NewTextResultProvider returns a new text result provider.
-func NewTextResultProvider(log *logger.Logger) *TextResultProvider {
-	return &TextResultProvider{log: log}
-}
+var (
+	// Text is a static singleton text result provider.
+	Text TextResultProvider
+
+	// assert TestResultProvider implements result provider.
+	_ ResultProvider = Text
+)
 
 // TextResultProvider is the default response provider if none is specified.
-type TextResultProvider struct {
-	log *logger.Logger
-}
+type TextResultProvider struct{}
 
 // NotFound returns a text response.
-func (trp *TextResultProvider) NotFound() Result {
+func (trp TextResultProvider) NotFound() Result {
 	return &RawResult{
 		StatusCode:  http.StatusNotFound,
 		ContentType: ContentTypeText,
@@ -27,7 +26,7 @@ func (trp *TextResultProvider) NotFound() Result {
 }
 
 // NotAuthorized returns a text response.
-func (trp *TextResultProvider) NotAuthorized() Result {
+func (trp TextResultProvider) NotAuthorized() Result {
 	return &RawResult{
 		StatusCode:  http.StatusForbidden,
 		ContentType: ContentTypeText,
@@ -36,28 +35,16 @@ func (trp *TextResultProvider) NotAuthorized() Result {
 }
 
 // InternalError returns a text response.
-func (trp *TextResultProvider) InternalError(err error) Result {
-	if trp.log != nil {
-		trp.log.Fatal(err)
-	}
-
-	if err != nil {
-		return &RawResult{
-			StatusCode:  http.StatusInternalServerError,
-			ContentType: ContentTypeText,
-			Body:        []byte(err.Error()),
-		}
-	}
-
-	return &RawResult{
+func (trp TextResultProvider) InternalError(err error) Result {
+	return resultWithLoggedError(&RawResult{
 		StatusCode:  http.StatusInternalServerError,
 		ContentType: ContentTypeText,
-		Body:        []byte("An internal server error occurred."),
-	}
+		Body:        []byte(fmt.Sprintf("%+v", err)),
+	}, err)
 }
 
 // BadRequest returns a text response.
-func (trp *TextResultProvider) BadRequest(err error) Result {
+func (trp TextResultProvider) BadRequest(err error) Result {
 	if err != nil {
 		return &RawResult{
 			StatusCode:  http.StatusBadRequest,
@@ -72,11 +59,20 @@ func (trp *TextResultProvider) BadRequest(err error) Result {
 	}
 }
 
-// Result returns a plaintext result.
-func (trp *TextResultProvider) Result(response interface{}) Result {
+// Status returns a plaintext result.
+func (trp TextResultProvider) Status(statusCode int, response ...interface{}) Result {
+	return &RawResult{
+		StatusCode:  statusCode,
+		ContentType: ContentTypeText,
+		Body:        []byte(fmt.Sprintf("%v", ResultOrDefault(http.StatusText(statusCode), response...))),
+	}
+}
+
+// Result returns an xml response.
+func (trp TextResultProvider) Result(result interface{}) Result {
 	return &RawResult{
 		StatusCode:  http.StatusOK,
 		ContentType: ContentTypeText,
-		Body:        []byte(fmt.Sprintf("%s", response)),
+		Body:        []byte(fmt.Sprintf("%v", result)),
 	}
 }

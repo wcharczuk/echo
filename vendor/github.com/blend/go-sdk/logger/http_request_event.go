@@ -36,7 +36,7 @@ type HTTPRequestEvent struct {
 	*EventMeta
 	req   *http.Request
 	route string
-	state map[string]interface{}
+	state map[interface{}]interface{}
 }
 
 // WithHeadings sets the headings.
@@ -92,13 +92,13 @@ func (e *HTTPRequestEvent) Route() string {
 }
 
 // WithState sets the request state.
-func (e *HTTPRequestEvent) WithState(state map[string]interface{}) *HTTPRequestEvent {
+func (e *HTTPRequestEvent) WithState(state map[interface{}]interface{}) *HTTPRequestEvent {
 	e.state = state
 	return e
 }
 
 // State returns the state of the request.
-func (e *HTTPRequestEvent) State() map[string]interface{} {
+func (e *HTTPRequestEvent) State() map[interface{}]interface{} {
 	return e.state
 }
 
