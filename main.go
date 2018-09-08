@@ -45,7 +45,7 @@ func main() {
 	})
 
 	app.GET("/long/:seconds", func(r *web.Ctx) web.Result {
-		seconds, err := r.RouteParamInt("seconds")
+		seconds, err := web.IntValue(r.RouteParam("seconds"))
 		if err != nil {
 			return r.Text().BadRequest(err)
 		}
