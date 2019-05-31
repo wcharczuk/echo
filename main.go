@@ -48,6 +48,7 @@ func main() {
 			return web.Text.BadRequest(err)
 		}
 
+		start := time.Now()
 		r.Response.WriteHeader(http.StatusOK)
 		timeout := time.After(time.Duration(seconds) * time.Second)
 		ticker := time.NewTicker(500 * time.Millisecond)
@@ -55,7 +56,7 @@ func main() {
 			select {
 			case <-ticker.C:
 				{
-					fmt.Fprintf(r.Response, "tick\n")
+					fmt.Fprintf(r.Response, "%v tick\n", time.Since(start))
 					r.Response.Flush()
 				}
 			case <-timeout:
