@@ -6,16 +6,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/blend/go-sdk/ex"
-
 	"github.com/blend/go-sdk/env"
+	"github.com/blend/go-sdk/ex"
 	"github.com/blend/go-sdk/graceful"
 	"github.com/blend/go-sdk/logger"
 	"github.com/blend/go-sdk/web"
 )
 
 func main() {
-	log := logger.All(logger.OptSubContext("echo"))
+	log := logger.All(logger.OptPath("echo"))
 
 	appStart := time.Now()
 
