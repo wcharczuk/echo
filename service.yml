@@ -1,4 +1,4 @@
-accessibility: private
+accessibility: vpn
 containerPort: 5000
 
 wardenProxy: "enabled"
