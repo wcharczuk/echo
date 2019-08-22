@@ -1,5 +1,7 @@
-accessibility: protected
+accessibility: private
 containerPort: 5000
+
+wardenProxy: "enabled"
 
 readinessProbe:
   httpGet:
